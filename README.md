@@ -32,3 +32,10 @@ npm run dev
 4. 看板主页（多仓库/筛选/搜索/总览卡片）
 5. 手动调整 + 导出 Excel
 6. 历史快照 + 趋势图 + 对比上一次快照
+
+## 当前已实现接口（进行中）
+
+- `GET /api/health`：健康检查
+- `GET /api/snapshots/template-columns`：查看上传必填列名
+- `GET /api/snapshots/template`：下载 CSV 示例模板
+- `POST /api/snapshots/upload`：上传 Excel 并写入快照
