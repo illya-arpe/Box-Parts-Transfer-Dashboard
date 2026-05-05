@@ -51,6 +51,7 @@ class ReplenishmentRow(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     snapshot_id: Mapped[int] = mapped_column(ForeignKey("snapshots.id"), index=True)
     sku_id: Mapped[int] = mapped_column(ForeignKey("skus.id"), index=True)
+    box_sku: Mapped[str] = mapped_column(String(100), default="")
 
     main_in_transit: Mapped[float] = mapped_column(Float, default=0)
     main_warehouse_available: Mapped[float] = mapped_column(Float, default=0)
