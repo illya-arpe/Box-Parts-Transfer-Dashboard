@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>黄盒缺货补货看板 - 原型</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --text: #1f2329;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --blue: #1677ff;
+        --red: #ff4d4f;
+        --orange: #fa8c16;
+        --yellow: #fadb14;
+        --green: #52c41a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+      .container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .title {
+        margin: 0;
+        font-size: 24px;
+      }
+      .sub {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .health {
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #f6ffed;
+        color: #389e0d;
+        border: 1px solid #b7eb8f;
+      }
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .card h4 {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .num {
+        margin-top: 8px;
+        font-size: 28px;
+        font-weight: 700;
+      }
+      .section {
+        margin-top: 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .input,
+      .select,
+      .btn {
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 12px;
+        background: #fff;
+      }
+      .input {
+        min-width: 220px;
+      }
+      .btn-primary {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        padding: 10px 8px;
+        white-space: nowrap;
+      }
+      th {
+        background: #fafafa;
+        color: #4b5563;
+        font-weight: 600;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 18px;
+      }
+      .tag-r {
+        color: #a8071a;
+        background: #fff1f0;
+        border: 1px solid #ffa39e;
+      }
+      .tag-o {
+        color: #ad6800;
+        background: #fff7e6;
+        border: 1px solid #ffd591;
+      }
+      .tag-y {
+        color: #876800;
+        background: #feffe6;
+        border: 1px solid #ffe58f;
+      }
+      .tag-g {
+        color: #237804;
+        background: #f6ffed;
+        border: 1px solid #b7eb8f;
+      }
+      .hint {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 960px) {
+        .grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div>
+          <h1 class="title">黄盒缺货补货看板（静态原型）</h1>
+          <p class="sub">上传当期数据 → 自动计算各 SKU 调拨建议量（当前为展示数据）</p>
+        </div>
+        <span class="health">后端状态：已连通 ✓</span>
+      </header>
+
+      <section class="grid">
+        <article class="card">
+          <h4>紧急（红）SKU</h4>
+          <div class="num" style="color: var(--red)">3</div>
+        </article>
+        <article class="card">
+          <h4>预警（橙）SKU</h4>
+          <div class="num" style="color: var(--orange)">12</div>
+        </article>
+        <article class="card">
+          <h4>关注（黄）SKU</h4>
+          <div class="num" style="color: #d4b106">7</div>
+        </article>
+        <article class="card">
+          <h4>正常（绿）SKU</h4>
+          <div class="num" style="color: var(--green)">48</div>
+        </article>
+      </section>
+
+      <section class="section">
+        <div class="row">
+          <button class="btn btn-primary">上传 Excel</button>
+          <select class="select">
+            <option>海外仓：全部</option>
+            <option>美国仓</option>
+            <option>欧洲仓</option>
+            <option>加拿大仓</option>
+          </select>
+          <select class="select">
+            <option>商品等级：全部</option>
+            <option>A</option>
+            <option>B</option>
+            <option>C</option>
+          </select>
+          <select class="select">
+            <option>预警级别：全部</option>
+            <option>R</option>
+            <option>O</option>
+            <option>Y</option>
+            <option>G</option>
+          </select>
+          <input class="input" placeholder="搜索主品 SKU / 黄盒 SKU" />
+          <button class="btn">导出当前视图</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <table>
+          <thead>
+            <tr>
+              <th>海外仓</th>
+              <th>主品SKU</th>
+              <th>黄盒SKU</th>
+              <th>主品90天日均销</th>
+              <th>黄盒海外仓可用</th>
+              <th>黄盒在途</th>
+              <th>预估需求量</th>
+              <th>计算调拨量</th>
+              <th>调整后调拨量</th>
+              <th>预警级别</th>
+              <th>调整原因</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>美国仓</td>
+              <td>MAIN-001</td>
+              <td>BOX-001</td>
+              <td>32.5</td>
+              <td>15</td>
+              <td>6</td>
+              <td>11.7</td>
+              <td>8.2</td>
+              <td contenteditable="true">10</td>
+              <td><span class="tag tag-r">R 紧急</span></td>
+              <td contenteditable="true">活动前备货</td>
+            </tr>
+            <tr>
+              <td>欧洲仓</td>
+              <td>MAIN-032</td>
+              <td>BOX-032</td>
+              <td>18.0</td>
+              <td>24</td>
+              <td>12</td>
+              <td>6.5</td>
+              <td>-29.5</td>
+              <td contenteditable="true">0</td>
+              <td><span class="tag tag-g">G 正常</span></td>
+              <td contenteditable="true">-</td>
+            </tr>
+            <tr>
+              <td>加拿大仓</td>
+              <td>MAIN-078</td>
+              <td>BOX-078</td>
+              <td>25.2</td>
+              <td>9</td>
+              <td>4</td>
+              <td>9.1</td>
+              <td>-3.9</td>
+              <td contenteditable="true">2</td>
+              <td><span class="tag tag-y">Y 关注</span></td>
+              <td contenteditable="true">安全库存上调</td>
+            </tr>
+            <tr>
+              <td>美国仓</td>
+              <td>MAIN-120</td>
+              <td>BOX-120</td>
+              <td>40.0</td>
+              <td>8</td>
+              <td>3</td>
+              <td>14.4</td>
+              <td>3.4</td>
+              <td contenteditable="true">4</td>
+              <td><span class="tag tag-o">O 预警</span></td>
+              <td contenteditable="true">按整箱调拨</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="hint">
+          说明：该页面为静态原型，当前数据为示例值；下一步可接入真实 Excel 上传与后端接口。
+        </p>
+      </section>
+    </div>
+  </body>
+</html>
