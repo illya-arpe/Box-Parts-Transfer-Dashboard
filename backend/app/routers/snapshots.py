@@ -201,6 +201,63 @@ def get_warehouse_overview() -> dict[str, object]:
         return {"warehouses": data}
 
 
+@router.get("")
+def list_snapshots(warehouse_id: int = Query(...)) -> dict[str, object]:
+    with SessionLocal() as session:
+        rows = (
+            session.query(ReplenishmentRow, Sku, Snapshot)
+            .join(Snapshot, Snapshot.id == ReplenishmentRow.snapshot_id)
+            .join(Sku, Sku.id == ReplenishmentRow.sku_id)
+            .filter(Snapshot.warehouse_id == warehouse_id)
+            .all()
+        )
+
+        snap_stats: dict[int, dict[str, int]] = {}
+        for row, sku, snap in rows:
+            if snap.id not in snap_stats:
+                snap_stats[snap.id] = {
+                    "row_count": 0,
+                    "alert_r": 0,
+                    "alert_o": 0,
+                    "alert_y": 0,
+                    "alert_g": 0,
+                }
+            snap_stats[snap.id]["row_count"] += 1
+            lvl = row.alert_level
+            if lvl == "R":
+                snap_stats[snap.id]["alert_r"] += 1
+            elif lvl == "O":
+                snap_stats[snap.id]["alert_o"] += 1
+            elif lvl == "Y":
+                snap_stats[snap.id]["alert_y"] += 1
+            else:
+                snap_stats[snap.id]["alert_g"] += 1
+
+        snap_list = (
+            session.scalars(
+                select(Snapshot)
+                .where(Snapshot.warehouse_id == warehouse_id)
+                .order_by(Snapshot.created_at.desc())
+            )
+            .all()
+        )
+
+        return {
+            "warehouse_id": warehouse_id,
+            "snapshots": [
+                {
+                    "id": snap.id,
+                    "warehouse_id": snap.warehouse_id,
+                    "created_at": snap.created_at.isoformat(),
+                    **snap_stats.get(snap.id, {
+                        "row_count": 0, "alert_r": 0, "alert_o": 0, "alert_y": 0, "alert_g": 0
+                    }),
+                }
+                for snap in snap_list
+            ],
+        }
+
+
 @router.get("/warehouse/{warehouse_id}/latest-rows")
 def get_latest_snapshot_rows_by_warehouse(warehouse_id: int) -> dict[str, object]:
     with SessionLocal() as session:
@@ -336,3 +393,103 @@ def export_snapshot_rows(
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
+
+
+ALERT_ORDER = {"R": 4, "O": 3, "Y": 2, "G": 1}
+
+
+def _alert_severity(level: str) -> int:
+    return ALERT_ORDER.get(level, 0)
+
+
+@router.get("/compare")
+def compare_snapshots(
+    old: int = Query(..., description="旧快照 ID"),
+    new: int = Query(..., description="新快照 ID"),
+) -> dict[str, object]:
+    with SessionLocal() as session:
+        old_snap = session.get(Snapshot, old)
+        new_snap = session.get(Snapshot, new)
+        if old_snap is None:
+            raise HTTPException(status_code=404, detail=f"旧快照 {old} 不存在")
+        if new_snap is None:
+            raise HTTPException(status_code=404, detail=f"新快照 {new} 不存在")
+        if old_snap.warehouse_id != new_snap.warehouse_id:
+            raise HTTPException(
+                status_code=400,
+                detail="两个快照必须属于同一仓库，不支持跨仓库对比",
+            )
+
+        old_rows = {
+            (r.sku_id, r.box_sku): r
+            for r, _ in session.query(ReplenishmentRow, Sku)
+            .join(Sku, Sku.id == ReplenishmentRow.sku_id)
+            .filter(ReplenishmentRow.snapshot_id == old)
+            .all()
+        }
+
+        new_rows = {
+            (r.sku_id, r.box_sku): r
+            for r, _ in session.query(ReplenishmentRow, Sku)
+            .join(Sku, Sku.id == ReplenishmentRow.sku_id)
+            .filter(ReplenishmentRow.snapshot_id == new)
+            .all()
+        }
+
+        old_skus = {sid: s for s, _ in session.query(Sku, ReplenishmentRow)
+                    .filter(ReplenishmentRow.snapshot_id == old)
+                    .filter(ReplenishmentRow.sku_id == Sku.id)
+                    .all()}
+        new_skus = {sid: s for s, _ in session.query(Sku, ReplenishmentRow)
+                    .filter(ReplenishmentRow.snapshot_id == new)
+                    .filter(ReplenishmentRow.sku_id == Sku.id)
+                    .all()}
+
+        changed = []
+        for (sku_id, box_sku), old_row in old_rows.items():
+            new_row = new_rows.get((sku_id, box_sku))
+            if new_row is None:
+                continue
+            if old_row.alert_level == new_row.alert_level:
+                continue
+
+            sku = new_skus.get(sku_id)
+            old_sev = _alert_severity(old_row.alert_level)
+            new_sev = _alert_severity(new_row.alert_level)
+            diff_pct: float | None = None
+            if old_row.calculated_transfer_qty != 0:
+                diff_pct = round(
+                    (new_row.calculated_transfer_qty - old_row.calculated_transfer_qty)
+                    / abs(old_row.calculated_transfer_qty)
+                    * 100,
+                    1,
+                )
+
+            changed.append(
+                {
+                    "sku_code": sku.sku_code if sku else "",
+                    "box_sku_code": box_sku,
+                    "product_name": sku.product_name if sku else None,
+                    "grade": sku.product_grade if sku else None,
+                    "old_alert_level": old_row.alert_level,
+                    "new_alert_level": new_row.alert_level,
+                    "old_calculated_transfer_qty": old_row.calculated_transfer_qty,
+                    "new_calculated_transfer_qty": new_row.calculated_transfer_qty,
+                    "diff_pct": diff_pct,
+                    "improved": new_sev < old_sev,
+                }
+            )
+
+        changed.sort(
+            key=lambda x: (
+                -abs(_alert_severity(x["new_alert_level"]) - _alert_severity(x["old_alert_level"])),
+                _alert_severity(x["new_alert_level"]),
+            )
+        )
+        return {
+            "old_snapshot_id": old,
+            "new_snapshot_id": new,
+            "warehouse_id": old_snap.warehouse_id,
+            "changed_count": len(changed),
+            "items": changed,
+        }
