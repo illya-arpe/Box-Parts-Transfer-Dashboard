@@ -3,6 +3,7 @@ from io import BytesIO
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from sqlalchemy import select
 
 from app.database import SessionLocal
@@ -32,10 +33,26 @@ REQUIRED_COLUMNS = [
 def to_float(value: object) -> float:
     if pd.isna(value):
         return 0.0
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
+
+
+def build_rows_payload(rows: list[tuple[ReplenishmentRow, Sku]]) -> list[dict[str, object]]:
+    return [
+        {
+            "row_id": row.id,
+            "main_sku": sku.sku_code,
+            "box_sku": row.box_sku,
+            "product_grade": sku.product_grade,
+            "box_overseas_available": row.box_overseas_available,
+            "box_in_transit": row.box_in_transit,
+            "estimated_failure_qty": row.estimated_failure_qty,
+            "estimated_demand_qty": row.estimated_demand_qty,
+            "calculated_transfer_qty": row.calculated_transfer_qty,
+            "adjusted_transfer_qty": row.adjusted_transfer_qty,
+            "adjust_note": row.adjust_note,
+            "alert_level": row.alert_level,
+        }
+        for row, sku in rows
+    ]
 
 
 @router.get("/template-columns")
@@ -225,21 +242,97 @@ def get_snapshot_rows(snapshot_id: int) -> dict[str, object]:
             ),
         )
 
+        return {"snapshot_id": snapshot_id, "rows": build_rows_payload(sorted_rows)}
+
+
+@router.patch("/rows/{row_id}/adjust")
+def adjust_row(
+    row_id: int,
+    adjusted_transfer_qty: float = Form(...),
+    adjust_note: str = Form(default=""),
+) -> dict[str, object]:
+    with SessionLocal() as session:
+        row = session.get(ReplenishmentRow, row_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="行数据不存在")
+        row.adjusted_transfer_qty = adjusted_transfer_qty
+        row.adjust_note = adjust_note.strip() or None
+        session.commit()
         return {
-            "snapshot_id": snapshot_id,
-            "rows": [
-                {
-                    "row_id": row.id,
-                    "main_sku": sku.sku_code,
-                    "box_sku": row.box_sku,
-                    "product_grade": sku.product_grade,
-                    "box_overseas_available": row.box_overseas_available,
-                    "box_in_transit": row.box_in_transit,
-                    "estimated_failure_qty": row.estimated_failure_qty,
-                    "estimated_demand_qty": row.estimated_demand_qty,
-                    "calculated_transfer_qty": row.calculated_transfer_qty,
-                    "alert_level": row.alert_level,
-                }
-                for row, sku in sorted_rows
-            ],
+            "message": "调整已保存",
+            "row_id": row_id,
+            "adjusted_transfer_qty": row.adjusted_transfer_qty,
+            "adjust_note": row.adjust_note,
         }
+
+
+@router.post("/{snapshot_id}/export")
+def export_snapshot_rows(
+    snapshot_id: int,
+    row_ids: str = Form(...),
+) -> StreamingResponse:
+    selected_ids = [int(x) for x in row_ids.split(",") if x.strip()]
+    if not selected_ids:
+        raise HTTPException(status_code=400, detail="导出行不能为空")
+
+    with SessionLocal() as session:
+        snapshot = session.get(Snapshot, snapshot_id)
+        if snapshot is None:
+            raise HTTPException(status_code=404, detail="快照不存在")
+        rows = (
+            session.query(ReplenishmentRow, Sku)
+            .join(Sku, Sku.id == ReplenishmentRow.sku_id)
+            .filter(
+                ReplenishmentRow.snapshot_id == snapshot_id,
+                ReplenishmentRow.id.in_(selected_ids),
+            )
+            .all()
+        )
+        if not rows:
+            raise HTTPException(status_code=400, detail="未找到导出数据")
+
+        row_map = {row.id: (row, sku) for row, sku in rows}
+        ordered_rows = [row_map[rid] for rid in selected_ids if rid in row_map]
+
+        workbook = Workbook()
+        ws = workbook.active
+        ws.title = "补货建议"
+        ws.append(
+            [
+                "主品SKU",
+                "黄盒SKU",
+                "商品等级",
+                "黄盒海外仓可用量",
+                "黄盒在途数量",
+                "预估需求量",
+                "计算调拨量",
+                "调整后调拨量",
+                "调整原因",
+                "预警级别",
+            ]
+        )
+        for row, sku in ordered_rows:
+            ws.append(
+                [
+                    sku.sku_code,
+                    row.box_sku,
+                    sku.product_grade,
+                    row.box_overseas_available,
+                    row.box_in_transit,
+                    row.estimated_demand_qty,
+                    row.calculated_transfer_qty,
+                    row.adjusted_transfer_qty,
+                    row.adjust_note or "",
+                    row.alert_level,
+                ]
+            )
+
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        filename = f"snapshot_{snapshot_id}_view.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )

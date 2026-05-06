@@ -3,6 +3,8 @@ import {
   Alert,
   Button,
   Card,
+  InputNumber,
+  Modal,
   Layout,
   Select,
   Space,
@@ -13,6 +15,7 @@ import {
   Input,
   Typography,
   Upload,
+  Form,
   message
 } from "antd";
 import type { UploadProps } from "antd";
@@ -43,6 +46,8 @@ type SnapshotRow = {
   estimated_failure_qty: number;
   estimated_demand_qty: number;
   calculated_transfer_qty: number;
+  adjusted_transfer_qty: number;
+  adjust_note?: string | null;
   alert_level: "R" | "O" | "Y" | "G";
 };
 
@@ -67,6 +72,11 @@ export default function App() {
   const [gradeFilter, setGradeFilter] = useState<string[]>([]);
   const [alertFilter, setAlertFilter] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
+  const [activeSnapshotId, setActiveSnapshotId] = useState<number | null>(null);
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [reasonModalOpen, setReasonModalOpen] = useState(false);
+  const [reasonRow, setReasonRow] = useState<SnapshotRow | null>(null);
+  const [reasonForm] = Form.useForm<{ adjust_note: string }>();
   const templateUrl = useMemo(
     () => `${apiClient.defaults.baseURL}/api/snapshots/template`,
     []
@@ -105,6 +115,7 @@ export default function App() {
         `/api/snapshots/warehouse/${warehouseId}/latest-rows`
       );
       setRows(response.data.rows || []);
+      setActiveSnapshotId((response.data as { snapshot_id?: number }).snapshot_id || null);
     } catch (error) {
       message.error("看板数据加载失败");
       setRows([]);
@@ -229,6 +240,36 @@ export default function App() {
       fixed: "right" as const
     },
     {
+      title: "调整后调拨量",
+      dataIndex: "adjusted_transfer_qty",
+      key: "adjusted_transfer_qty",
+      fixed: "right" as const,
+      render: (_: number, record: SnapshotRow) => {
+        const isEditing = editingRowId === record.row_id;
+        if (isEditing) {
+          return (
+            <InputNumber
+              autoFocus
+              defaultValue={record.adjusted_transfer_qty}
+              onPressEnter={async (e) => {
+                const value = Number((e.target as HTMLInputElement).value || 0);
+                await saveAdjustment(record, value, record.adjust_note || "");
+              }}
+              onBlur={async (e) => {
+                const value = Number((e.target as HTMLInputElement).value || 0);
+                await saveAdjustment(record, value, record.adjust_note || "");
+              }}
+            />
+          );
+        }
+        return (
+          <Button type="link" onClick={() => setEditingRowId(record.row_id)}>
+            {record.adjusted_transfer_qty}
+          </Button>
+        );
+      }
+    },
+    {
       title: "预警等级",
       dataIndex: "alert_level",
       key: "alert_level",
@@ -242,8 +283,74 @@ export default function App() {
         };
         return map[value];
       }
+    },
+    {
+      title: "调整原因",
+      dataIndex: "adjust_note",
+      key: "adjust_note",
+      fixed: "right" as const,
+      render: (_: string, record: SnapshotRow) => (
+        <Button
+          size="small"
+          onClick={() => {
+            setReasonRow(record);
+            reasonForm.setFieldsValue({ adjust_note: record.adjust_note || "" });
+            setReasonModalOpen(true);
+          }}
+        >
+          {record.adjust_note ? "编辑原因" : "填写原因"}
+        </Button>
+      )
     }
   ];
+
+  const saveAdjustment = async (record: SnapshotRow, qty: number, note: string) => {
+    const formData = new FormData();
+    formData.append("adjusted_transfer_qty", String(qty));
+    formData.append("adjust_note", note);
+    try {
+      await apiClient.patch(`/api/snapshots/rows/${record.row_id}/adjust`, formData);
+      setRows((prev) =>
+        prev.map((x) =>
+          x.row_id === record.row_id ? { ...x, adjusted_transfer_qty: qty, adjust_note: note } : x
+        )
+      );
+      message.success("调整已保存");
+    } catch (error) {
+      message.error("保存失败");
+    } finally {
+      setEditingRowId(null);
+    }
+  };
+
+  const exportCurrentView = async () => {
+    if (!activeSnapshotId || filteredRows.length === 0) {
+      message.warning("当前无可导出的数据");
+      return;
+    }
+    const formData = new FormData();
+    formData.append(
+      "row_ids",
+      filteredRows.map((x) => x.row_id).join(",")
+    );
+    try {
+      const response = await apiClient.post(
+        `/api/snapshots/${activeSnapshotId}/export`,
+        formData,
+        { responseType: "blob" }
+      );
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `warehouse_${activeWarehouseName}_snapshot_${activeSnapshotId}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      message.success("导出成功");
+    } catch (error) {
+      message.error("导出失败");
+    }
+  };
 
   return (
     <Layout style={{ minHeight: "100vh", padding: 24 }}>
@@ -336,6 +443,9 @@ export default function App() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
+            <Button icon={<DownloadOutlined />} onClick={exportCurrentView}>
+              导出当前视图
+            </Button>
           </Space>
           <Table
             rowKey="row_id"
@@ -347,6 +457,24 @@ export default function App() {
           />
         </Card>
       </Space>
+      <Modal
+        title="填写调整原因"
+        open={reasonModalOpen}
+        onCancel={() => setReasonModalOpen(false)}
+        onOk={async () => {
+          const note = reasonForm.getFieldValue("adjust_note") || "";
+          if (reasonRow) {
+            await saveAdjustment(reasonRow, reasonRow.adjusted_transfer_qty, note);
+          }
+          setReasonModalOpen(false);
+        }}
+      >
+        <Form form={reasonForm} layout="vertical">
+          <Form.Item name="adjust_note" label="调整原因（可选）">
+            <Input.TextArea rows={4} placeholder="例如：活动备货、按整箱调拨等" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 }
