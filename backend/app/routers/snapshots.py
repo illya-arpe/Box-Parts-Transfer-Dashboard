@@ -1,7 +1,8 @@
 from io import BytesIO
+from urllib.parse import quote
 
 import pandas as pd
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import select
@@ -33,6 +34,24 @@ REQUIRED_COLUMNS = [
 def to_float(value: object) -> float:
     if pd.isna(value):
         return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def calculate_priority_score(
+    alert_level: str,
+    product_grade: str | None,
+    calculated_transfer_qty: float,
+) -> float:
+    alert_scores = {"R": 400, "O": 300, "Y": 200, "G": 100}
+    grade_scores = {"A": 30, "B": 20, "C": 10, "D": 0}
+    normalized_grade = (product_grade or "D").upper()
+    alert_score = alert_scores.get(alert_level, 0)
+    grade_score = grade_scores.get(normalized_grade, 0)
+    qty_score = min(max(calculated_transfer_qty, 0), 99)
+    return alert_score + grade_score * 10 + qty_score
 
 
 def build_rows_payload(rows: list[tuple[ReplenishmentRow, Sku]]) -> list[dict[str, object]]:
@@ -42,13 +61,32 @@ def build_rows_payload(rows: list[tuple[ReplenishmentRow, Sku]]) -> list[dict[st
             "main_sku": sku.sku_code,
             "box_sku": row.box_sku,
             "product_grade": sku.product_grade,
-            "box_overseas_available": row.box_overseas_available,
+            # 主品参数
+            "main_in_transit": row.main_in_transit,
+            "main_available": row.main_warehouse_available,
+            "main_planned_in_transit": row.main_planned_in_transit,
+            "main_sales_90d": row.main_sales_90d,
+            "main_daily_avg_90d": row.main_daily_avg_90d,
+            # 黄盒参数
             "box_in_transit": row.box_in_transit,
+            "box_overseas_available": row.box_overseas_available,
+            "box_planned_in_transit": row.box_planned_in_transit,
+            "box_domestic_available": row.box_domestic_available,
+            "box_sales_90d": row.box_sales_90d,
+            "box_daily_avg_90d": row.box_daily_avg_90d,
+            # 计算结果
             "estimated_failure_qty": row.estimated_failure_qty,
             "estimated_demand_qty": row.estimated_demand_qty,
             "calculated_transfer_qty": row.calculated_transfer_qty,
+            "priority_score": calculate_priority_score(
+                alert_level=row.alert_level,
+                product_grade=sku.product_grade,
+                calculated_transfer_qty=row.calculated_transfer_qty,
+            ),
+            # 手动调整
             "adjusted_transfer_qty": row.adjusted_transfer_qty,
             "adjust_note": row.adjust_note,
+            # 预警
             "alert_level": row.alert_level,
         }
         for row, sku in rows
@@ -62,16 +100,64 @@ def get_template_columns() -> dict[str, list[str]]:
 
 @router.get("/template")
 def download_template() -> StreamingResponse:
-    csv_content = (
-        "主品SKU,主品在途数量,主品仓库可用量,主品计划在途量,主品90天销量,主品90天日均销,主品商品等级,"
-        "黄盒SKU,黄盒在途数量,黄盒海外仓可用量,黄盒计划在途量,黄盒90天销量,黄盒90天日均销,黄盒国内仓可用量\n"
-        "MAIN-001,120,300,80,2925,32.5,A,BOX-001,6,15,10,450,5.0,200\n"
-        "MAIN-032,40,180,30,1620,18.0,B,BOX-032,12,24,15,300,3.3,150\n"
-    )
+    workbook = Workbook()
+    ws = workbook.active
+    ws.title = "补货数据"
+
+    headers = [
+        "主品SKU",
+        "主品在途数量",
+        "主品仓库可用量",
+        "主品计划在途量",
+        "主品90天销量",
+        "主品90天日均销",
+        "主品商品等级",
+        "黄盒SKU",
+        "黄盒在途数量",
+        "黄盒海外仓可用量",
+        "黄盒计划在途量",
+        "黄盒90天销量",
+        "黄盒90天日均销",
+        "黄盒国内仓可用量",
+    ]
+    ws.append(headers)
+
+    example_row = [
+        "MAIN-001",
+        120,
+        300,
+        80,
+        2925,
+        32.5,
+        "A",
+        "BOX-001",
+        6,
+        15,
+        10,
+        450,
+        5.0,
+        200,
+    ]
+    ws.append(example_row)
+
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = max(max_length + 4, 14)
+
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    filename = quote("黄盒补货模板.xlsx")
     return StreamingResponse(
-        iter([csv_content.encode("utf-8-sig")]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=yellow_box_template.csv"},
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}; filename*=utf-8''{filename}"
+        },
     )
 
 

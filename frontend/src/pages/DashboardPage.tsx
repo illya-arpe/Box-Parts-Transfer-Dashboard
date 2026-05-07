@@ -16,9 +16,11 @@ import {
   Upload,
   Form,
   message,
+  Tooltip,
+  Popover,
 } from "antd";
 import type { UploadProps } from "antd";
-import { DownloadOutlined, LineChartOutlined, UploadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, LineChartOutlined, UploadOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 
 import { apiClient } from "../api/client";
 
@@ -41,13 +43,28 @@ type SnapshotRow = {
   main_sku: string;
   box_sku: string;
   product_grade: string | null;
-  box_overseas_available: number;
+  // 主品参数
+  main_in_transit: number;
+  main_available: number;
+  main_planned_in_transit: number;
+  main_sales_90d: number;
+  main_daily_avg_90d: number;
+  // 黄盒参数
   box_in_transit: number;
+  box_overseas_available: number;
+  box_planned_in_transit: number;
+  box_sales_90d: number;
+  box_daily_avg_90d: number;
+  box_domestic_available: number;
+  // 计算结果
   estimated_failure_qty: number;
   estimated_demand_qty: number;
   calculated_transfer_qty: number;
+  priority_score: number;
+  // 手动调整
   adjusted_transfer_qty: number;
   adjust_note?: string | null;
+  // 预警
   alert_level: "R" | "O" | "Y" | "G";
 };
 
@@ -60,6 +77,39 @@ type TrendPoint = {
   main_daily_avg_90d: number;
   alert_level: "R" | "O" | "Y" | "G";
 };
+
+// 公式说明
+const FORMULA_POPOVER_CONTENT = (
+  <div style={{ maxWidth: 340, fontSize: 12, lineHeight: 1.8 }}>
+    <div style={{ fontWeight: 600, marginBottom: 6, color: "#1e293b" }}>计算公式</div>
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ color: "#64748b" }}>预估失败件数 = 主品日均销 × 破损率 × 天数</div>
+      <code style={{ color: "#3b82f6" }}>estimated_failure_qty = main_daily_avg_90d × 0.02 × 90</code>
+    </div>
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ color: "#64748b" }}>预估黄盒需求 = 失败件数 × 换箱率</div>
+      <code style={{ color: "#3b82f6" }}>estimated_demand_qty = estimated_failure_qty × 0.20</code>
+    </div>
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ color: "#64748b" }}>计算调拨量 = 预估需求 - 海外仓可用 - 在途</div>
+      <code style={{ color: "#3b82f6" }}>calculated_transfer_qty = estimated_demand_qty - box_overseas_available - box_in_transit</code>
+    </div>
+    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e2e8f0", color: "#94a3b8", fontSize: 11 }}>
+      破损率 FAILURE_RATE = 0.02<br />
+      换箱率 REPLACEMENT_RATIO = 0.20<br />
+      预测天数 FORECAST_DAYS = 90
+    </div>
+  </div>
+);
+
+const PRIORITY_POPOVER_CONTENT = (
+  <div style={{ maxWidth: 300, fontSize: 12, lineHeight: 1.8 }}>
+    <div style={{ fontWeight: 600, marginBottom: 6, color: "#1e293b" }}>优先级分数</div>
+    <div style={{ color: "#64748b", marginBottom: 4 }}>总分 = 预警分 + 等级分×10 + min(调拨量, 99)</div>
+    <div style={{ marginBottom: 4 }}>预警分：<span style={{ color: "#ef4444" }}>R=400</span>, <span style={{ color: "#f97316" }}>O=300</span>, <span style={{ color: "#eab308" }}>Y=200</span>, <span style={{ color: "#22c55e" }}>G=100</span></div>
+    <div>等级分：<span style={{ color: "#a855f7" }}>A=30</span>, <span style={{ color: "#3b82f6" }}>B=20</span>, <span style={{ color: "#64748b" }}>C=10</span>, D=0</div>
+  </div>
+);
 
 export default function DashboardPage() {
   const [uploadResult, setUploadResult] = useState<UploadState>(null);
@@ -80,7 +130,23 @@ export default function DashboardPage() {
   const [trendSku, setTrendSku] = useState<string | null>(null);
   const [trendPoints, setTrendPoints] = useState<TrendPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
-  const templateUrl = `${apiClient.defaults.baseURL}/api/snapshots/template`;
+
+  const downloadTemplate = async () => {
+    try {
+      const response = await apiClient.get("/api/snapshots/template", { responseType: "blob" });
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "黄盒补货模板.xlsx";
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      message.error("模板下载失败");
+    }
+  };
 
   const fetchWarehouses = async () => {
     try {
@@ -247,31 +313,110 @@ export default function DashboardPage() {
     }
   };
 
+  const alertTag = (level: SnapshotRow["alert_level"]) => {
+    const map: Record<string, React.ReactNode> = {
+      R: <Tag color="error">R 紧急</Tag>,
+      O: <Tag color="warning">O 预警</Tag>,
+      Y: <Tag color="gold">Y 关注</Tag>,
+      G: <Tag color="success">G 正常</Tag>,
+    };
+    return map[level];
+  };
+
+  const gradeTag = (grade: string | null) => {
+    if (!grade) return null;
+    const colorMap: Record<string, string> = { A: "purple", B: "blue", C: "default", D: "default" };
+    return <Tag color={colorMap[grade] || "default"}>{grade}</Tag>;
+  };
+
   const columns = [
-    { title: "主品SKU", dataIndex: "main_sku", key: "main_sku" },
-    { title: "黄盒SKU", dataIndex: "box_sku", key: "box_sku" },
-    { title: "商品等级", dataIndex: "product_grade", key: "product_grade" },
+    // 主品参数
+    { title: "主品SKU", dataIndex: "main_sku", key: "main_sku", width: 120, fixed: "left" as const },
+    { title: "等级", dataIndex: "product_grade", key: "product_grade", width: 70, render: (v: string | null) => gradeTag(v) },
+    { title: "主品在途", dataIndex: "main_in_transit", key: "main_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "主品仓库可用", dataIndex: "main_available", key: "main_available", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "主品计划在途", dataIndex: "main_planned_in_transit", key: "main_planned_in_transit", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "主品90天销量", dataIndex: "main_sales_90d", key: "main_sales_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "主品日均销", dataIndex: "main_daily_avg_90d", key: "main_daily_avg_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+    // 黄盒参数
+    { title: "黄盒SKU", dataIndex: "box_sku", key: "box_sku", width: 120 },
+    { title: "黄盒在途", dataIndex: "box_in_transit", key: "box_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "海外仓可用", dataIndex: "box_overseas_available", key: "box_overseas_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "计划在途", dataIndex: "box_planned_in_transit", key: "box_planned_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "国内仓可用", dataIndex: "box_domestic_available", key: "box_domestic_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+    { title: "黄盒日均销", dataIndex: "box_daily_avg_90d", key: "box_daily_avg_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+    // 计算结果
     {
-      title: "黄盒海外仓可用",
-      dataIndex: "box_overseas_available",
-      key: "box_overseas_available",
+      title: (
+        <span>
+          预估失败件数
+          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
+            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+          </Popover>
+        </span>
+      ),
+      dataIndex: "estimated_failure_qty",
+      key: "estimated_failure_qty",
+      width: 120,
+      align: "right" as const,
+      render: (v: number) => Math.round(v),
     },
-    { title: "黄盒在途", dataIndex: "box_in_transit", key: "box_in_transit" },
     {
-      title: "预估需求量",
+      title: (
+        <span>
+          预估需求量
+          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
+            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+          </Popover>
+        </span>
+      ),
       dataIndex: "estimated_demand_qty",
       key: "estimated_demand_qty",
+      width: 110,
+      align: "right" as const,
+      render: (v: number) => Math.round(v),
     },
     {
-      title: "计算调拨量",
+      title: (
+        <span>
+          计算调拨量
+          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
+            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+          </Popover>
+        </span>
+      ),
       dataIndex: "calculated_transfer_qty",
       key: "calculated_transfer_qty",
-      fixed: "right" as const,
+      width: 110,
+      align: "right" as const,
+      render: (v: number) => (
+        <span style={{ fontWeight: 600, color: v < 0 ? "#52c41a" : "#fa8c16" }}>
+          {Math.round(v)}
+        </span>
+      ),
     },
     {
-      title: "调整后调拨量",
+      title: (
+        <span>
+          优先级分
+          <Popover content={PRIORITY_POPOVER_CONTENT} trigger="hover" placement="top">
+            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+          </Popover>
+        </span>
+      ),
+      dataIndex: "priority_score",
+      key: "priority_score",
+      width: 90,
+      align: "right" as const,
+      render: (v: number) => <span style={{ color: "#94a3b8" }}>{Math.round(v)}</span>,
+    },
+    // 人工调整
+    {
+      title: "调整后",
       dataIndex: "adjusted_transfer_qty",
       key: "adjusted_transfer_qty",
+      width: 100,
+      align: "right" as const,
       fixed: "right" as const,
       render: (_: number, record: SnapshotRow) => {
         const isEditing = editingRowId === record.row_id;
@@ -279,7 +424,8 @@ export default function DashboardPage() {
           return (
             <InputNumber
               autoFocus
-              defaultValue={record.adjusted_transfer_qty}
+              min={0}
+              defaultValue={Math.round(record.adjusted_transfer_qty)}
               onBlur={async (e) => {
                 const value = Number((e.target as HTMLInputElement).value || 0);
                 await saveAdjustment(record, value, record.adjust_note || "");
@@ -289,30 +435,16 @@ export default function DashboardPage() {
         }
         return (
           <Button type="link" onClick={() => setEditingRowId(record.row_id)}>
-            {record.adjusted_transfer_qty}
+            {Math.round(record.adjusted_transfer_qty)}
           </Button>
         );
-      },
-    },
-    {
-      title: "预警等级",
-      dataIndex: "alert_level",
-      key: "alert_level",
-      fixed: "right" as const,
-      render: (value: SnapshotRow["alert_level"]) => {
-        const map: Record<string, React.ReactNode> = {
-          R: <Tag color="error">紧急</Tag>,
-          O: <Tag color="warning">预警</Tag>,
-          Y: <Tag color="gold">关注</Tag>,
-          G: <Tag color="success">正常</Tag>,
-        };
-        return map[value];
       },
     },
     {
       title: "调整原因",
       dataIndex: "adjust_note",
       key: "adjust_note",
+      width: 110,
       fixed: "right" as const,
       render: (_: string, record: SnapshotRow) => (
         <Button
@@ -323,13 +455,24 @@ export default function DashboardPage() {
             setReasonModalOpen(true);
           }}
         >
-          {record.adjust_note ? "编辑原因" : "填写原因"}
+          {record.adjust_note ? "编辑" : "填写"}
         </Button>
       ),
     },
+    // 预警
+    {
+      title: "预警等级",
+      dataIndex: "alert_level",
+      key: "alert_level",
+      width: 100,
+      fixed: "right" as const,
+      render: (v: SnapshotRow["alert_level"]) => alertTag(v),
+    },
+    // 趋势
     {
       title: "趋势",
       key: "trend",
+      width: 80,
       fixed: "right" as const,
       render: (_: unknown, record: SnapshotRow) =>
         activeWarehouseId ? (
@@ -337,9 +480,7 @@ export default function DashboardPage() {
             size="small"
             icon={<LineChartOutlined />}
             onClick={() => handleTrend(record.main_sku, activeWarehouseId)}
-          >
-            趋势
-          </Button>
+          />
         ) : null,
     },
   ];
@@ -363,9 +504,7 @@ export default function DashboardPage() {
               </Upload>
               <Button
                 icon={<DownloadOutlined />}
-                href={templateUrl}
-                target="_blank"
-                rel="noreferrer"
+                onClick={downloadTemplate}
               >
                 下载模板
               </Button>
@@ -391,52 +530,69 @@ export default function DashboardPage() {
           />
           <Space size={12} wrap style={{ marginBottom: 12 }}>
             <Card size="small">
-              <Statistic title="紧急（红）" value={summary.R} valueStyle={{ color: "#ff4d4f" }} />
+              <Statistic title="紧急（R）" value={summary.R} valueStyle={{ color: "#ff4d4f" }} />
             </Card>
             <Card size="small">
-              <Statistic title="预警（橙）" value={summary.O} valueStyle={{ color: "#fa8c16" }} />
+              <Statistic title="预警（O）" value={summary.O} valueStyle={{ color: "#fa8c16" }} />
             </Card>
             <Card size="small">
-              <Statistic title="关注（黄）" value={summary.Y} valueStyle={{ color: "#d4b106" }} />
+              <Statistic title="关注（Y）" value={summary.Y} valueStyle={{ color: "#d4b106" }} />
             </Card>
             <Card size="small">
-              <Statistic title="正常（绿）" value={summary.G} valueStyle={{ color: "#52c41a" }} />
+              <Statistic title="正常（G）" value={summary.G} valueStyle={{ color: "#52c41a" }} />
+            </Card>
+            <Card size="small" bodyStyle={{ padding: "8px 12px" }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                鼠标悬停&nbsp;
+                <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover">
+                  <a style={{ color: "#3b82f6", cursor: "pointer" }}>预估需求量</a>
+                </Popover>
+                &nbsp;/&nbsp;
+                <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover">
+                  <a style={{ color: "#3b82f6", cursor: "pointer" }}>计算调拨量</a>
+                </Popover>
+                &nbsp;查看公式说明
+              </Typography.Text>
             </Card>
           </Space>
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Select
-              mode="multiple"
-              allowClear
-              placeholder="按商品等级筛选"
-              style={{ width: 220 }}
-              options={["A", "B", "C"].map((x) => ({ label: x, value: x }))}
-              value={gradeFilter}
-              onChange={setGradeFilter}
-            />
-            <Select
-              mode="multiple"
-              allowClear
-              placeholder="按预警等级筛选"
-              style={{ width: 220 }}
-              options={[
-                { label: "紧急(R)", value: "R" },
-                { label: "预警(O)", value: "O" },
-                { label: "关注(Y)", value: "Y" },
-                { label: "正常(G)", value: "G" },
-              ]}
-              value={alertFilter}
-              onChange={setAlertFilter}
-            />
-            <Input.Search
-              allowClear
-              placeholder="搜索主品SKU / 黄盒SKU"
-              style={{ width: 260 }}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-            <Button icon={<DownloadOutlined />} onClick={exportCurrentView}>
-              导出当前视图
-            </Button>
+          <Space direction="vertical" size={8} style={{ marginBottom: 12, width: "100%" }}>
+            <Space wrap>
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="按商品等级"
+                style={{ minWidth: 160 }}
+                options={["A", "B", "C"].map((x) => ({ label: x, value: x }))}
+                value={gradeFilter}
+                onChange={setGradeFilter}
+              />
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="按预警等级"
+                style={{ minWidth: 180 }}
+                options={[
+                  { label: "紧急(R)", value: "R" },
+                  { label: "预警(O)", value: "O" },
+                  { label: "关注(Y)", value: "Y" },
+                  { label: "正常(G)", value: "G" },
+                ]}
+                value={alertFilter}
+                onChange={setAlertFilter}
+              />
+            </Space>
+            <Space wrap>
+              <Input.Search
+                allowClear
+                placeholder="搜索主品SKU / 黄盒SKU"
+                style={{ width: 260 }}
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+              <Button icon={<DownloadOutlined />} onClick={exportCurrentView}>
+                导出当前视图
+              </Button>
+            </Space>
           </Space>
           <Table
             rowKey="row_id"
@@ -444,7 +600,8 @@ export default function DashboardPage() {
             columns={columns}
             dataSource={filteredRows}
             pagination={{ pageSize: 10 }}
-            scroll={{ x: 1200 }}
+            scroll={{ x: 2200 }}
+            size="small"
           />
         </Card>
       </Space>
@@ -504,7 +661,7 @@ function TrendChartEmbed({ points }: { points: TrendPoint[] }) {
 
   const dates = points.map((p) => p.uploaded_at.replace("T", " ").slice(0, 16));
   const option = {
-    tooltip: { trigger: "axis" },
+    tooltip: { trigger: "axis", formatter: (params: { name: string; value: number; seriesName: string }[]) => params.map((p) => `<b>${p.seriesName}</b>：${Math.round(p.value)}<br/>`).join("") },
     legend: { data: ["计算调拨量", "调整后调拨量", "黄盒海外仓可用量"], top: 10 },
     grid: { left: 60, right: 30, top: 50, bottom: 50 },
     xAxis: { type: "category", data: dates, axisLabel: { rotate: 20 } },

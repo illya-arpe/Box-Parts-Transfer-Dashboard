@@ -55,7 +55,7 @@ export default function SkuTrendChart({ title, points }: Props) {
         return params
           .map(
             (p) =>
-              `<b>${p.seriesName}</b>：${p.value}<br/>`
+              `<b>${p.seriesName}</b>：${Math.round(p.value)}<br/>`
           )
           .join("") + `<b>预警等级</b>：${alert}`;
       },
