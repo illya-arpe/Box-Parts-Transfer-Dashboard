@@ -80,25 +80,13 @@ type TrendPoint = {
 
 // 公式说明
 const FORMULA_POPOVER_CONTENT = (
-  <div style={{ maxWidth: 340, fontSize: 12, lineHeight: 1.8 }}>
-    <div style={{ fontWeight: 600, marginBottom: 6, color: "#1e293b" }}>计算公式</div>
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ color: "#64748b" }}>预估失败件数 = 主品日均销 × 破损率 × 天数</div>
-      <code style={{ color: "#3b82f6" }}>estimated_failure_qty = main_daily_avg_90d × 0.02 × 90</code>
-    </div>
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ color: "#64748b" }}>预估黄盒需求 = 失败件数 × 换箱率</div>
-      <code style={{ color: "#3b82f6" }}>estimated_demand_qty = estimated_failure_qty × 0.20</code>
-    </div>
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ color: "#64748b" }}>计算调拨量 = 预估需求 - 海外仓可用 - 在途</div>
-      <code style={{ color: "#3b82f6" }}>calculated_transfer_qty = estimated_demand_qty - box_overseas_available - box_in_transit</code>
-    </div>
-    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e2e8f0", color: "#94a3b8", fontSize: 11 }}>
-      破损率 FAILURE_RATE = 0.02<br />
-      换箱率 REPLACEMENT_RATIO = 0.20<br />
-      预测天数 FORECAST_DAYS = 90
-    </div>
+  <div style={{ maxWidth: 320, fontSize: 12, lineHeight: 1.8 }}>
+    <div style={{ fontWeight: 600, marginBottom: 8, color: "#1e293b" }}>计算公式</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>发货失败率=2%</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>换黄盒比例=20%</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天发货失败件数 = 主品90天日均销 × 发货失败率 × 天数（90）</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天黄盒需求 = 未来90天发货失败件数 × 20%</div>
+    <div style={{ marginBottom: 4, color: "#64748b" }}>计算调拨量 = 预估需求量 - 海外仓可用量 - 海外仓在途量</div>
   </div>
 );
 
@@ -330,158 +318,176 @@ export default function DashboardPage() {
   };
 
   const columns = [
-    // 主品参数
-    { title: "主品SKU", dataIndex: "main_sku", key: "main_sku", width: 120, fixed: "left" as const },
-    { title: "等级", dataIndex: "product_grade", key: "product_grade", width: 70, render: (v: string | null) => gradeTag(v) },
-    { title: "主品在途", dataIndex: "main_in_transit", key: "main_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "主品仓库可用", dataIndex: "main_available", key: "main_available", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "主品计划在途", dataIndex: "main_planned_in_transit", key: "main_planned_in_transit", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "主品90天销量", dataIndex: "main_sales_90d", key: "main_sales_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "主品日均销", dataIndex: "main_daily_avg_90d", key: "main_daily_avg_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
-    // 黄盒参数
-    { title: "黄盒SKU", dataIndex: "box_sku", key: "box_sku", width: 120 },
-    { title: "黄盒在途", dataIndex: "box_in_transit", key: "box_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "海外仓可用", dataIndex: "box_overseas_available", key: "box_overseas_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "计划在途", dataIndex: "box_planned_in_transit", key: "box_planned_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "国内仓可用", dataIndex: "box_domestic_available", key: "box_domestic_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
-    { title: "黄盒日均销", dataIndex: "box_daily_avg_90d", key: "box_daily_avg_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
-    // 计算结果
+    // 第一行：列分组
     {
-      title: (
-        <span>
-          预估失败件数
-          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
-            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
-          </Popover>
-        </span>
-      ),
-      dataIndex: "estimated_failure_qty",
-      key: "estimated_failure_qty",
-      width: 120,
-      align: "right" as const,
-      render: (v: number) => Math.round(v),
+      title: "黄盒",
+      key: "box_group",
+      fixed: "left" as const,
+      onHeaderCell: () => ({ style: { background: "#e6f7ff" } }),
+      children: [
+        { title: "黄盒SKU", dataIndex: "box_sku", key: "box_sku", width: 224, fixed: "left" as const },
+      ],
     },
     {
-      title: (
-        <span>
-          预估需求量
-          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
-            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
-          </Popover>
-        </span>
-      ),
-      dataIndex: "estimated_demand_qty",
-      key: "estimated_demand_qty",
-      width: 110,
-      align: "right" as const,
-      render: (v: number) => Math.round(v),
+      title: "主品参数",
+      key: "main_group",
+      onHeaderCell: () => ({ style: { background: "#fff7e6" } }),
+      children: [
+        { title: "主品SKU", dataIndex: "main_sku", key: "main_sku", width: 110 },
+        { title: "等级", dataIndex: "product_grade", key: "product_grade", width: 60, render: (v: string | null) => gradeTag(v) },
+        { title: "主品在途", dataIndex: "main_in_transit", key: "main_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "主品仓库可用", dataIndex: "main_available", key: "main_available", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "主品计划在途", dataIndex: "main_planned_in_transit", key: "main_planned_in_transit", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "主品90天销量", dataIndex: "main_sales_90d", key: "main_sales_90d", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "主品日均销", dataIndex: "main_daily_avg_90d", key: "main_daily_avg_90d", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+      ],
     },
     {
-      title: (
-        <span>
-          计算调拨量
-          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
-            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
-          </Popover>
-        </span>
-      ),
-      dataIndex: "calculated_transfer_qty",
-      key: "calculated_transfer_qty",
-      width: 110,
-      align: "right" as const,
-      render: (v: number) => (
-        <span style={{ fontWeight: 600, color: v < 0 ? "#52c41a" : "#fa8c16" }}>
-          {Math.round(v)}
-        </span>
-      ),
+      title: "黄盒参数",
+      key: "box_params_group",
+      onHeaderCell: () => ({ style: { background: "#f6ffed" } }),
+      children: [
+        { title: "黄盒在途", dataIndex: "box_in_transit", key: "box_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "海外仓可用", dataIndex: "box_overseas_available", key: "box_overseas_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "计划在途", dataIndex: "box_planned_in_transit", key: "box_planned_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "国内仓可用", dataIndex: "box_domestic_available", key: "box_domestic_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "黄盒日均销", dataIndex: "box_daily_avg_90d", key: "box_daily_avg_90d", width: 95, align: "right" as const, render: (v: number) => Math.round(v) },
+      ],
     },
     {
-      title: (
-        <span>
-          优先级分
-          <Popover content={PRIORITY_POPOVER_CONTENT} trigger="hover" placement="top">
-            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
-          </Popover>
-        </span>
-      ),
-      dataIndex: "priority_score",
-      key: "priority_score",
-      width: 90,
-      align: "right" as const,
-      render: (v: number) => <span style={{ color: "#94a3b8" }}>{Math.round(v)}</span>,
+      title: "计算结果",
+      key: "calc_group",
+      children: [
+        {
+          title: "预估失败件数",
+          dataIndex: "estimated_failure_qty",
+          key: "estimated_failure_qty",
+          width: 110,
+          align: "right" as const,
+          render: (v: number) => Math.round(v),
+        },
+        {
+          title: "预估需求量",
+          dataIndex: "estimated_demand_qty",
+          key: "estimated_demand_qty",
+          width: 105,
+          align: "right" as const,
+          render: (v: number) => Math.round(v),
+        },
+        {
+          title: "计算调拨量",
+          dataIndex: "calculated_transfer_qty",
+          key: "calculated_transfer_qty",
+          width: 105,
+          align: "right" as const,
+          render: (v: number) => (
+            <span style={{ fontWeight: 600, color: v < 0 ? "#52c41a" : "#fa8c16" }}>
+              {Math.round(v)}
+            </span>
+          ),
+        },
+        {
+          title: (
+            <span>
+              优先级分
+              <Popover content={PRIORITY_POPOVER_CONTENT} trigger="hover" placement="top">
+                <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+              </Popover>
+            </span>
+          ),
+          dataIndex: "priority_score",
+          key: "priority_score",
+          width: 85,
+          align: "right" as const,
+          render: (v: number) => <span style={{ color: "#94a3b8" }}>{Math.round(v)}</span>,
+        },
+      ],
     },
-    // 人工调整
     {
-      title: "调整后",
-      dataIndex: "adjusted_transfer_qty",
-      key: "adjusted_transfer_qty",
-      width: 100,
-      align: "right" as const,
-      fixed: "right" as const,
-      render: (_: number, record: SnapshotRow) => {
-        const isEditing = editingRowId === record.row_id;
-        if (isEditing) {
-          return (
-            <InputNumber
-              autoFocus
-              min={0}
-              defaultValue={Math.round(record.adjusted_transfer_qty)}
-              onBlur={async (e) => {
-                const value = Number((e.target as HTMLInputElement).value || 0);
-                await saveAdjustment(record, value, record.adjust_note || "");
+      title: "人工调整",
+      key: "adjust_group",
+      children: [
+        {
+          title: "调整后",
+          dataIndex: "adjusted_transfer_qty",
+          key: "adjusted_transfer_qty",
+          width: 80,
+          align: "right" as const,
+          render: (_: number, record: SnapshotRow) => {
+            const isEditing = editingRowId === record.row_id;
+            if (isEditing) {
+              return (
+                <InputNumber
+                  autoFocus
+                  min={0}
+                  defaultValue={Math.round(record.adjusted_transfer_qty)}
+                  onBlur={async (e) => {
+                    const value = Number((e.target as HTMLInputElement).value || 0);
+                    await saveAdjustment(record, value, record.adjust_note || "");
+                  }}
+                />
+              );
+            }
+            return (
+              <Button type="link" onClick={() => setEditingRowId(record.row_id)}>
+                {Math.round(record.adjusted_transfer_qty)}
+              </Button>
+            );
+          },
+        },
+        {
+          title: "调整原因",
+          dataIndex: "adjust_note",
+          key: "adjust_note",
+          width: 90,
+          render: (_: string, record: SnapshotRow) => (
+            <Button
+              size="small"
+              onClick={() => {
+                setReasonRow(record);
+                reasonForm.setFieldsValue({ adjust_note: record.adjust_note || "" });
+                setReasonModalOpen(true);
               }}
-            />
-          );
-        }
-        return (
-          <Button type="link" onClick={() => setEditingRowId(record.row_id)}>
-            {Math.round(record.adjusted_transfer_qty)}
-          </Button>
-        );
-      },
+            >
+              {record.adjust_note ? "编辑" : "填写"}
+            </Button>
+          ),
+        },
+      ],
     },
     {
-      title: "调整原因",
-      dataIndex: "adjust_note",
-      key: "adjust_note",
-      width: 110,
-      fixed: "right" as const,
-      render: (_: string, record: SnapshotRow) => (
-        <Button
-          size="small"
-          onClick={() => {
-            setReasonRow(record);
-            reasonForm.setFieldsValue({ adjust_note: record.adjust_note || "" });
-            setReasonModalOpen(true);
-          }}
-        >
-          {record.adjust_note ? "编辑" : "填写"}
-        </Button>
-      ),
+      title: "预警",
+      key: "alert_group",
+      children: [
+        {
+          title: "预警等级",
+          dataIndex: "alert_level",
+          key: "alert_level",
+          width: 90,
+          render: (v: SnapshotRow["alert_level"]) => alertTag(v),
+        },
+      ],
     },
-    // 预警
     {
-      title: "预警等级",
-      dataIndex: "alert_level",
-      key: "alert_level",
-      width: 100,
+      title: "操作",
+      key: "action_group",
       fixed: "right" as const,
-      render: (v: SnapshotRow["alert_level"]) => alertTag(v),
-    },
-    // 趋势
-    {
-      title: "趋势",
-      key: "trend",
-      width: 80,
-      fixed: "right" as const,
-      render: (_: unknown, record: SnapshotRow) =>
-        activeWarehouseId ? (
-          <Button
-            size="small"
-            icon={<LineChartOutlined />}
-            onClick={() => handleTrend(record.main_sku, activeWarehouseId)}
-          />
-        ) : null,
+      children: [
+        {
+          title: "趋势",
+          key: "trend",
+          width: 60,
+          fixed: "right" as const,
+          render: (_: unknown, record: SnapshotRow) =>
+            activeWarehouseId ? (
+              <Button
+                size="small"
+                icon={<LineChartOutlined />}
+                onClick={() => handleTrend(record.main_sku, activeWarehouseId)}
+              />
+            ) : null,
+        },
+      ],
     },
   ];
 
@@ -541,58 +547,46 @@ export default function DashboardPage() {
             <Card size="small">
               <Statistic title="正常（G）" value={summary.G} valueStyle={{ color: "#52c41a" }} />
             </Card>
-            <Card size="small" bodyStyle={{ padding: "8px 12px" }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                鼠标悬停&nbsp;
-                <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover">
-                  <a style={{ color: "#3b82f6", cursor: "pointer" }}>预估需求量</a>
-                </Popover>
-                &nbsp;/&nbsp;
-                <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover">
-                  <a style={{ color: "#3b82f6", cursor: "pointer" }}>计算调拨量</a>
-                </Popover>
-                &nbsp;查看公式说明
+            <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="bottom">
+              <Typography.Text type="secondary" style={{ fontSize: 12, cursor: "help" }}>
+                查看公式说明
               </Typography.Text>
-            </Card>
+            </Popover>
           </Space>
-          <Space direction="vertical" size={8} style={{ marginBottom: 12, width: "100%" }}>
-            <Space wrap>
-              <Select
-                mode="multiple"
-                allowClear
-                placeholder="按商品等级"
-                style={{ minWidth: 160 }}
-                options={["A", "B", "C"].map((x) => ({ label: x, value: x }))}
-                value={gradeFilter}
-                onChange={setGradeFilter}
-              />
-              <Select
-                mode="multiple"
-                allowClear
-                placeholder="按预警等级"
-                style={{ minWidth: 180 }}
-                options={[
-                  { label: "紧急(R)", value: "R" },
-                  { label: "预警(O)", value: "O" },
-                  { label: "关注(Y)", value: "Y" },
-                  { label: "正常(G)", value: "G" },
-                ]}
-                value={alertFilter}
-                onChange={setAlertFilter}
-              />
-            </Space>
-            <Space wrap>
-              <Input.Search
-                allowClear
-                placeholder="搜索主品SKU / 黄盒SKU"
-                style={{ width: 260 }}
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-              />
-              <Button icon={<DownloadOutlined />} onClick={exportCurrentView}>
-                导出当前视图
-              </Button>
-            </Space>
+          <Space wrap size={8} style={{ marginBottom: 12 }}>
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="按商品等级"
+              style={{ minWidth: 160 }}
+              options={["A", "B", "C"].map((x) => ({ label: x, value: x }))}
+              value={gradeFilter}
+              onChange={setGradeFilter}
+            />
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="按预警等级"
+              style={{ minWidth: 180 }}
+              options={[
+                { label: "紧急(R)", value: "R" },
+                { label: "预警(O)", value: "O" },
+                { label: "关注(Y)", value: "Y" },
+                { label: "正常(G)", value: "G" },
+              ]}
+              value={alertFilter}
+              onChange={setAlertFilter}
+            />
+            <Input.Search
+              allowClear
+              placeholder="搜索主品SKU / 黄盒SKU"
+              style={{ width: 260 }}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+            <Button icon={<DownloadOutlined />} onClick={exportCurrentView}>
+              导出当前视图
+            </Button>
           </Space>
           <Table
             rowKey="row_id"
