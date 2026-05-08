@@ -80,13 +80,18 @@ type TrendPoint = {
 
 // 公式说明
 const FORMULA_POPOVER_CONTENT = (
-  <div style={{ maxWidth: 320, fontSize: 12, lineHeight: 1.8 }}>
+  <div style={{ maxWidth: 360, fontSize: 12, lineHeight: 1.8 }}>
     <div style={{ fontWeight: 600, marginBottom: 8, color: "#1e293b" }}>计算公式</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>发货失败率=2%</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>换黄盒比例=20%</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天发货失败件数 = 主品90天日均销 × 发货失败率 × 天数（90）</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天黄盒需求 = 未来90天发货失败件数 × 20%</div>
-    <div style={{ marginBottom: 4, color: "#64748b" }}>计算调拨量 = 预估需求量 - 海外仓可用量 - 海外仓在途量</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>调拨量 = 预估需求量 - 海外仓可用量 - 海外仓在途量</div>
+    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0", fontWeight: 600, marginBottom: 8, color: "#1e293b" }}>预警等级说明</div>
+    <div style={{ marginBottom: 4, color: "#ef4444" }}><strong>R 紧急</strong>：调拨量&gt;0 且 国内仓可用 &lt; 调拨量 → 库存不足，需立即调拨</div>
+    <div style={{ marginBottom: 4, color: "#f97316" }}><strong>O 预警</strong>：调拨量&gt;0 且 国内仓可用 ≥ 调拨量 → 需调拨，库存暂时够用</div>
+    <div style={{ marginBottom: 4, color: "#eab308" }}><strong>Y 关注</strong>：调拨量≤0 且 海外仓可用 &lt; 30天预估需求 → 海外仓库存偏少</div>
+    <div style={{ color: "#22c55e" }}><strong>G 正常</strong>：其他情况 → 库存充足</div>
   </div>
 );
 
@@ -351,7 +356,7 @@ export default function DashboardPage() {
         { title: "海外仓可用", dataIndex: "box_overseas_available", key: "box_overseas_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
         { title: "计划在途", dataIndex: "box_planned_in_transit", key: "box_planned_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
         { title: "国内仓可用", dataIndex: "box_domestic_available", key: "box_domestic_available", width: 100, align: "right" as const, render: (v: number) => Math.round(v) },
-        { title: "黄盒日均销", dataIndex: "box_daily_avg_90d", key: "box_daily_avg_90d", width: 95, align: "right" as const, render: (v: number) => Math.round(v) },
+        { title: "黄盒90天销量", dataIndex: "box_sales_90d", key: "box_sales_90d", width: 95, align: "right" as const, render: (v: number) => Math.round(v) },
       ],
     },
     {

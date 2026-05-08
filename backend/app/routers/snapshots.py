@@ -26,7 +26,6 @@ REQUIRED_COLUMNS = [
     "黄盒海外仓可用量",
     "黄盒计划在途量",
     "黄盒90天销量",
-    "黄盒90天日均销",
     "黄盒国内仓可用量",
 ]
 
@@ -117,7 +116,6 @@ def download_template() -> StreamingResponse:
         "黄盒海外仓可用量",
         "黄盒计划在途量",
         "黄盒90天销量",
-        "黄盒90天日均销",
         "黄盒国内仓可用量",
     ]
     ws.append(headers)
@@ -135,7 +133,6 @@ def download_template() -> StreamingResponse:
         15,
         10,
         450,
-        5.0,
         200,
     ]
     ws.append(example_row)
@@ -239,7 +236,7 @@ async def upload_snapshot(
                 box_overseas_available=to_float(row["黄盒海外仓可用量"]),
                 box_planned_in_transit=to_float(row["黄盒计划在途量"]),
                 box_sales_90d=to_float(row["黄盒90天销量"]),
-                box_daily_avg_90d=to_float(row["黄盒90天日均销"]),
+                box_daily_avg_90d=to_float(row["黄盒90天销量"]),
                 box_domestic_available=to_float(row["黄盒国内仓可用量"]),
                 estimated_failure_qty=calc_result.estimated_failure_qty,
                 estimated_demand_qty=calc_result.estimated_demand_qty,
