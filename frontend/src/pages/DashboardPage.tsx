@@ -196,6 +196,7 @@ export default function DashboardPage() {
 
   const fetchRowsByWarehouseName = React.useCallback(async (warehouseName: string) => {
     if (!warehouseName) return;
+    setLoadingRows(true);
     try {
       const warehouseRes = await apiClient.get<{ warehouses: WarehouseOverview[] }>(
         "/api/snapshots/warehouses"
@@ -205,7 +206,6 @@ export default function DashboardPage() {
         message.error(`未找到仓库: ${warehouseName}`);
         return;
       }
-      setLoadingRows(true);
       const response = await apiClient.get<{ snapshot_id?: number; rows: SnapshotRow[] }>(
         `/api/snapshots/warehouse/${warehouse.warehouse_id}/latest-rows`
       );
@@ -217,7 +217,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingRows(false);
     }
-  }, []);
+  }, [apiClient]);
 
   useEffect(() => {
     void fetchWarehouses();
