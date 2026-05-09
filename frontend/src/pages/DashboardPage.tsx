@@ -9,7 +9,6 @@ import {
   Space,
   Statistic,
   Tag,
-  Tabs,
   Table,
   Input,
   Typography,
@@ -108,7 +107,7 @@ export default function DashboardPage() {
   const [uploadResult, setUploadResult] = useState<UploadState>(null);
   const [uploading, setUploading] = useState(false);
   const [warehouses, setWarehouses] = useState<WarehouseOverview[]>([]);
-  const [activeWarehouseId, setActiveWarehouseId] = useState<number | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [rows, setRows] = useState<SnapshotRow[]>([]);
   const [loadingRows, setLoadingRows] = useState(false);
   const [gradeFilter, setGradeFilter] = useState<string[]>([]);
@@ -141,82 +140,100 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await apiClient.post<{
+        total_rows: number;
+        warehouses_created: number;
+        warehouse_snapshots: Record<string, number>;
+      }>("/api/snapshots/upload", formData);
+      message.success(`上传成功：共 ${response.data.total_rows} 行，${response.data.warehouses_created} 个仓库`);
+      setUploadResult({
+        snapshot_id: Object.values(response.data.warehouse_snapshots)[0] as number,
+        inserted_rows: response.data.total_rows,
+        warehouse_name: Object.keys(response.data.warehouse_snapshots)[0],
+        message: "上传成功",
+      });
+      // 刷新仓库列表
+      const warehouseRes = await apiClient.get<{ warehouses: WarehouseOverview[] }>(
+        "/api/snapshots/warehouses"
+      );
+      setWarehouses(warehouseRes.data.warehouses);
+      // 自动选中第一个新仓库
+      const newWarehouseName = Object.keys(response.data.warehouse_snapshots)[0];
+      setSelectedWarehouse(newWarehouseName);
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { detail?: { message?: string } | string } };
+      };
+      const serverMessage =
+        (typeof err.response?.data?.detail === "object" &&
+          err.response?.data?.detail?.message) ||
+        err.response?.data?.detail ||
+        "上传失败，请检查模板列名";
+      message.error(String(serverMessage));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const fetchWarehouses = async () => {
     try {
       const response = await apiClient.get<{ warehouses: WarehouseOverview[] }>(
         "/api/snapshots/warehouses"
       );
       setWarehouses(response.data.warehouses);
-      if (response.data.warehouses.length > 0 && activeWarehouseId === null) {
-        setActiveWarehouseId(response.data.warehouses[0].warehouse_id);
+      if (response.data.warehouses.length > 0 && selectedWarehouse === null) {
+        setSelectedWarehouse(response.data.warehouses[0].warehouse_name);
       }
     } catch {
       message.error("仓库列表加载失败");
     }
   };
 
-  const fetchRows = async (warehouseId: number) => {
-    setLoadingRows(true);
+  const fetchRowsByWarehouseName = React.useCallback(async (warehouseName: string) => {
+    if (!warehouseName) return;
     try {
-      const response = await apiClient.get<{ rows: SnapshotRow[] }>(
-        `/api/snapshots/warehouse/${warehouseId}/latest-rows`
+      const warehouseRes = await apiClient.get<{ warehouses: WarehouseOverview[] }>(
+        "/api/snapshots/warehouses"
+      );
+      const warehouse = warehouseRes.data.warehouses.find((w) => w.warehouse_name === warehouseName);
+      if (!warehouse) {
+        message.error(`未找到仓库: ${warehouseName}`);
+        return;
+      }
+      setLoadingRows(true);
+      const response = await apiClient.get<{ snapshot_id?: number; rows: SnapshotRow[] }>(
+        `/api/snapshots/warehouse/${warehouse.warehouse_id}/latest-rows`
       );
       setRows(response.data.rows || []);
-      setActiveSnapshotId((response.data as { snapshot_id?: number }).snapshot_id || null);
+      setActiveSnapshotId(response.data.snapshot_id || null);
     } catch {
       message.error("看板数据加载失败");
       setRows([]);
     } finally {
       setLoadingRows(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void fetchWarehouses();
   }, []);
 
   useEffect(() => {
-    if (activeWarehouseId !== null) {
-      void fetchRows(activeWarehouseId);
-    }
-  }, [activeWarehouseId]);
-
-  const activeWarehouseName =
-    warehouses.find((w) => w.warehouse_id === activeWarehouseId)?.warehouse_name || "美国仓";
+    void fetchRowsByWarehouseName(selectedWarehouse || "");
+  }, [selectedWarehouse, fetchRowsByWarehouseName]);
 
   const uploadProps: UploadProps = {
     maxCount: 1,
     accept: ".xlsx,.xls",
-    showUploadList: true,
-    customRequest: async ({ file, onSuccess, onError }) => {
-      const formData = new FormData();
-      formData.append("file", file as File);
-      formData.append("warehouse_name", activeWarehouseName);
-      formData.append("warehouse_region", "NA");
-      setUploading(true);
-      try {
-        const response = await apiClient.post<UploadState>("/api/snapshots/upload", formData);
-        setUploadResult(response.data);
-        message.success("Excel 上传成功");
-        await fetchWarehouses();
-        if (activeWarehouseId !== null) {
-          await fetchRows(activeWarehouseId);
-        }
-        onSuccess?.(response.data);
-      } catch (error: unknown) {
-        const err = error as {
-          response?: { data?: { detail?: { message?: string } | string } };
-        };
-        const serverMessage =
-          (typeof err.response?.data?.detail === "object" &&
-            err.response?.data?.detail?.message) ||
-          err.response?.data?.detail ||
-          "上传失败，请检查模板列名";
-        message.error(String(serverMessage));
-        onError?.(error as Error);
-      } finally {
-        setUploading(false);
-      }
+    showUploadList: false,
+    beforeUpload: (file) => {
+      void handleUpload(file);
+      return false;
     },
   };
 
@@ -280,7 +297,7 @@ export default function DashboardPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `warehouse_${activeWarehouseName}_snapshot_${activeSnapshotId}.xlsx`;
+      a.download = `warehouse_${selectedWarehouse}_snapshot_${activeSnapshotId}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
       message.success("导出成功");
@@ -484,11 +501,16 @@ export default function DashboardPage() {
           width: 60,
           fixed: "right" as const,
           render: (_: unknown, record: SnapshotRow) =>
-            activeWarehouseId ? (
+            selectedWarehouse ? (
               <Button
                 size="small"
                 icon={<LineChartOutlined />}
-                onClick={() => handleTrend(record.main_sku, activeWarehouseId)}
+                onClick={() => {
+                  const warehouse = warehouses.find((w) => w.warehouse_name === selectedWarehouse);
+                  if (warehouse) {
+                    void handleTrend(record.main_sku, warehouse.warehouse_id);
+                  }
+                }}
               />
             ) : null,
         },
@@ -505,7 +527,7 @@ export default function DashboardPage() {
         <Card title="Excel 上传">
           <Space direction="vertical" size={12}>
             <Typography.Text type="secondary">
-              请使用标准模板列名上传，当前默认按"美国仓"写入快照数据。
+              请使用标准模板列名上传。Excel 中填写「仓库名」列，自动为每个仓库创建快照。
             </Typography.Text>
             <Space>
               <Upload {...uploadProps}>
@@ -531,34 +553,33 @@ export default function DashboardPage() {
           </Space>
         </Card>
         <Card>
-          <Tabs
-            activeKey={String(activeWarehouseId || "")}
-            onChange={(key) => setActiveWarehouseId(Number(key))}
-            items={warehouses.map((w) => ({
-              key: String(w.warehouse_id),
-              label: w.warehouse_name,
-            }))}
-          />
           <Space size={12} wrap style={{ marginBottom: 12 }}>
-            <Card size="small">
+            <Card size="small" bodyStyle={{ padding: 12 }}>
               <Statistic title="紧急（R）" value={summary.R} valueStyle={{ color: "#ff4d4f" }} />
             </Card>
-            <Card size="small">
+            <Card size="small" bodyStyle={{ padding: 12 }}>
               <Statistic title="预警（O）" value={summary.O} valueStyle={{ color: "#fa8c16" }} />
             </Card>
-            <Card size="small">
+            <Card size="small" bodyStyle={{ padding: 12 }}>
               <Statistic title="关注（Y）" value={summary.Y} valueStyle={{ color: "#d4b106" }} />
             </Card>
-            <Card size="small">
+            <Card size="small" bodyStyle={{ padding: 12 }}>
               <Statistic title="正常（G）" value={summary.G} valueStyle={{ color: "#52c41a" }} />
             </Card>
-            <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="bottom">
-              <Typography.Text type="secondary" style={{ fontSize: 12, cursor: "help" }}>
-                查看公式说明
-              </Typography.Text>
-            </Popover>
           </Space>
-          <Space wrap size={8} style={{ marginBottom: 12 }}>
+          <Space size={12} wrap style={{ marginBottom: 12 }}>
+            <Select
+              showSearch
+              allowClear
+              placeholder="选择仓库"
+              style={{ minWidth: 200 }}
+              value={selectedWarehouse}
+              onChange={(value) => setSelectedWarehouse(value || null)}
+              filterOption={(input, option) =>
+                (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              }
+              options={warehouses.map((w) => ({ label: w.warehouse_name, value: w.warehouse_name }))}
+            />
             <Select
               mode="multiple"
               allowClear
@@ -650,13 +671,13 @@ export default function DashboardPage() {
 }
 
 function TrendChartEmbed({ points }: { points: TrendPoint[] }) {
-  const [ReactECharts, setReactECharts] = useState<typeof import("echarts-for-react") | null>(null);
+  const [ChartComponent, setChartComponent] = useState<React.ComponentType<{ option: object; style?: React.CSSProperties }> | null>(null);
 
   useEffect(() => {
-    import("echarts-for-react").then((mod) => setReactECharts(mod.default));
+    import("echarts-for-react").then((mod) => setChartComponent(() => mod.default));
   }, []);
 
-  if (!ReactECharts || points.length === 0) return null;
+  if (!ChartComponent || points.length === 0) return null;
 
   const dates = points.map((p) => p.uploaded_at.replace("T", " ").slice(0, 16));
   const option = {
@@ -693,5 +714,5 @@ function TrendChartEmbed({ points }: { points: TrendPoint[] }) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: 320 }} />;
+  return <ChartComponent option={option} style={{ height: 320 }} />;
 }
