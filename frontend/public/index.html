@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>黄盒缺货补货看板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+    .tooltip { position: relative; cursor: help; border-bottom: 1px dashed #94a3b8; }
+    .tooltip:hover .tooltip-box { display: block; }
+    .tooltip-box {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: nowrap;
+      z-index: 100;
+      min-width: 320px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .tooltip-box code {
+      background: rgba(255,255,255,0.1);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    .tooltip-box::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1e293b;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <header class="bg-white border-b border-slate-100 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-slate-800">黄盒缺货补货看板</h1>
+        <p class="text-xs text-slate-400 mt-0.5">演示数据 · 美国仓 · 2026-05-06</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 text-xs bg-green-50 text-green-600 border border-green-200 px-3 py-1.5 rounded-full">
+          <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          系统正常
+        </span>
+        <button class="text-xs bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition cursor-not-allowed opacity-60" title="仅演示">上传 Excel</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-6">
+
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm text-center">
+        <div class="text-3xl font-bold text-red-500">3</div>
+        <div class="text-sm text-slate-400 mt-1">紧急（R）SKU</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm text-center">
+        <div class="text-3xl font-bold text-orange-500">12</div>
+        <div class="text-sm text-slate-400 mt-1">预警（O）SKU</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm text-center">
+        <div class="text-3xl font-bold text-yellow-500">7</div>
+        <div class="text-sm text-slate-400 mt-1">关注（Y）SKU</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm text-center">
+        <div class="text-3xl font-bold text-green-500">48</div>
+        <div class="text-sm text-slate-400 mt-1">正常（G）SKU</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+        <h3 class="text-sm font-semibold mb-4">预警等级分布</h3>
+        <canvas id="chartAlert" height="180"></canvas>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
+        <h3 class="text-sm font-semibold mb-4">近 4 周调拨量趋势</h3>
+        <canvas id="chartTrend" height="180"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-4 flex flex-wrap gap-3 items-center">
+      <select class="text-sm border border-slate-200 rounded-lg px-3 py-2">
+        <option>商品等级：全部</option>
+        <option>A</option><option>B</option><option>C</option>
+      </select>
+      <select class="text-sm border border-slate-200 rounded-lg px-3 py-2">
+        <option>预警级别：全部</option>
+        <option>R 紧急</option><option>O 预警</option><option>Y 关注</option><option>G 正常</option>
+      </select>
+      <input type="text" placeholder="搜索 SKU..." class="text-sm border border-slate-200 rounded-lg px-3 py-2 flex-1 min-w-[200px]" />
+      <button class="text-sm bg-slate-100 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-200 transition cursor-not-allowed opacity-60" title="仅演示">导出 Excel</button>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <th class="px-3 py-3 text-center font-semibold border-b border-slate-100" colspan="5">主品参数</th>
+              <th class="px-3 py-3 text-center font-semibold border-b border-slate-100" colspan="6">黄盒参数</th>
+              <th class="px-3 py-3 text-center font-semibold border-b border-slate-100" colspan="4">计算结果</th>
+              <th class="px-3 py-3 text-center font-semibold border-b border-slate-100" colspan="2">人工调整</th>
+              <th class="px-3 py-3 text-center font-semibold border-b border-slate-100">预警</th>
+            </tr>
+            <tr class="bg-slate-50 text-slate-600 text-xs">
+              <th class="px-3 py-2.5 border-b border-slate-100 text-left">主品SKU</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-left">商品等级</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">主品在途</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">主品仓库可用</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">90天日均销</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-left">黄盒SKU</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">黄盒在途</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right tooltip">
+                海外仓可用
+                <div class="tooltip-box">
+                  <div class="font-semibold mb-1">字段：<code>box_overseas_available</code></div>
+                  <div class="text-slate-300">黄盒在海外仓库的当前可用库存数量</div>
+                </div>
+              </th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right tooltip">
+                计划在途
+                <div class="tooltip-box">
+                  <div class="font-semibold mb-1">字段：<code>box_planned_in_transit</code></div>
+                  <div class="text-slate-300">已安排但尚未到达海外仓的黄盒数量</div>
+                </div>
+              </th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">国内仓可用</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">黄盒90天日均销</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right tooltip">
+                预估需求
+                <div class="tooltip-box">
+                  <div class="font-semibold mb-1">公式：<code>预估需求 = 90天日均销 × 2% × 90 × 20%</code></div>
+                  <div class="text-slate-300">= 主品日均销 × 破损率 × 天数 × 换箱率</div>
+                  <div class="text-slate-400 mt-1 text-[11px]">破损率：<code>FAILURE_RATE = 0.02</code></div>
+                  <div class="text-slate-400 text-[11px]">换箱率：<code>REPLACEMENT_RATIO = 0.20</code></div>
+                </div>
+              </th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right tooltip">
+                计算调拨
+                <div class="tooltip-box">
+                  <div class="font-semibold mb-1">公式：<code>调拨 = 预估需求 - 海外仓可用 - 在途</code></div>
+                  <div class="text-slate-300 mt-1">= <code>estimated_demand_qty</code> - <code>box_overseas_available</code> - <code>box_in_transit</code></div>
+                  <div class="text-slate-400 mt-1 text-[11px]">负值表示：当前库存充足，无需调拨</div>
+                </div>
+              </th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">优先级分</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-right">调整后</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-left">调整原因</th>
+              <th class="px-3 py-2.5 border-b border-slate-100 text-center">等级</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="text-slate-700"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-xs text-slate-400 mt-3 mb-6">显示 <span id="count">0</span> 条记录 · <span class="text-blue-500">演示数据</span> · 鼠标悬停公式字段查看计算说明</p>
+
+    <!-- 数据字段说明 -->
+    <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+      <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        数据字段说明
+      </h3>
+      <div class="grid grid-cols-3 gap-4 text-xs">
+        <div class="space-y-2">
+          <h4 class="font-semibold text-slate-500 uppercase tracking-wider">主品参数</h4>
+          <div class="space-y-1 text-slate-600">
+            <div><code class="bg-slate-100 px-1 rounded">main_sku</code> — 主品 SKU 编码</div>
+            <div><code class="bg-slate-100 px-1 rounded">grade</code> — 商品等级（A/B/C/D）</div>
+            <div><code class="bg-slate-100 px-1 rounded">main_in_transit</code> — 主品在途数量</div>
+            <div><code class="bg-slate-100 px-1 rounded">main_available</code> — 主品仓库可用量</div>
+            <div><code class="bg-slate-100 px-1 rounded">main_daily_avg_90d</code> — 主品 90 天日均销</div>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <h4 class="font-semibold text-slate-500 uppercase tracking-wider">黄盒参数</h4>
+          <div class="space-y-1 text-slate-600">
+            <div><code class="bg-slate-100 px-1 rounded">box_sku</code> — 黄盒 SKU 编码</div>
+            <div><code class="bg-slate-100 px-1 rounded">box_in_transit</code> — 黄盒在途数量</div>
+            <div><code class="bg-slate-100 px-1 rounded">box_overseas_available</code> — 黄盒海外仓可用</div>
+            <div><code class="bg-slate-100 px-1 rounded">box_planned_in_transit</code> — 黄盒计划在途</div>
+            <div><code class="bg-slate-100 px-1 rounded">box_domestic_available</code> — 黄盒国内仓可用</div>
+            <div><code class="bg-slate-100 px-1 rounded">box_daily_avg_90d</code> — 黄盒 90 天日均销</div>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <h4 class="font-semibold text-slate-500 uppercase tracking-wider">计算结果</h4>
+          <div class="space-y-1 text-slate-600">
+            <div><code class="bg-slate-100 px-1 rounded">estimated_failure_qty</code> — 预估发货失败件数</div>
+            <div><code class="bg-slate-100 px-1 rounded">estimated_demand_qty</code> — 预估黄盒需求量</div>
+            <div><code class="bg-slate-100 px-1 rounded">calculated_transfer_qty</code> — 计算调拨量</div>
+            <div><code class="bg-slate-100 px-1 rounded">adjusted_transfer_qty</code> — 调整后调拨量</div>
+            <div><code class="bg-slate-100 px-1 rounded">adjust_note</code> — 调整原因</div>
+            <div><code class="bg-slate-100 px-1 rounded">alert_level</code> — 预警等级（R/O/Y/G）</div>
+            <div><code class="bg-slate-100 px-1 rounded">priority_score</code> — 优先级分数</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-slate-100">
+        <h4 class="font-semibold text-slate-500 uppercase tracking-wider text-xs mb-3">计算公式</h4>
+        <div class="grid grid-cols-2 gap-4 text-xs">
+          <div class="bg-slate-50 rounded-lg p-3">
+            <div class="font-medium text-slate-700 mb-1">预估发货失败件数</div>
+            <code class="text-blue-600">= 主品90天日均销 × 0.02 × 90</code>
+            <div class="text-slate-400 mt-1">破损率 2%，预测未来 90 天</div>
+          </div>
+          <div class="bg-slate-50 rounded-lg p-3">
+            <div class="font-medium text-slate-700 mb-1">预估黄盒需求</div>
+            <code class="text-blue-600">= 预估失败件数 × 0.20</code>
+            <div class="text-slate-400 mt-1">20% 失败件需要换箱</div>
+          </div>
+          <div class="bg-slate-50 rounded-lg p-3">
+            <div class="font-medium text-slate-700 mb-1">计算调拨量</div>
+            <code class="text-blue-600">= 预估需求 - 海外仓可用 - 在途</code>
+            <div class="text-slate-400 mt-1">负值表示无需调拨</div>
+          </div>
+          <div class="bg-slate-50 rounded-lg p-3">
+            <div class="font-medium text-slate-700 mb-1">优先级分数</div>
+            <code class="text-blue-600">= 预警分 + 等级分×10 + min(调拨量, 99)</code>
+            <div class="text-slate-400 mt-1">R=400, O=300, Y=200, G=100；A=30, B=20, C=10, D=0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-slate-100">
+        <h4 class="font-semibold text-slate-500 uppercase tracking-wider text-xs mb-3">预警等级规则</h4>
+        <div class="grid grid-cols-4 gap-3 text-xs">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+            <div class="font-bold text-red-600">R 紧急</div>
+            <div class="text-red-700 mt-1">需调拨但<br>国内库存不足</div>
+            <div class="text-red-400 mt-1 text-[10px]">调拨>0 且 国内不够</div>
+          </div>
+          <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+            <div class="font-bold text-orange-600">O 预警</div>
+            <div class="text-orange-700 mt-1">需调拨且<br>国内库存充足</div>
+            <div class="text-orange-400 mt-1 text-[10px]">调拨>0 且 国内够</div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+            <div class="font-bold text-yellow-600">Y 关注</div>
+            <div class="text-yellow-700 mt-1">暂不需调拨<br>但库存撑不久</div>
+            <div class="text-yellow-400 mt-1 text-[10px]">调拨≤0 但 海外不足30天</div>
+          </div>
+          <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+            <div class="font-bold text-green-600">G 正常</div>
+            <div class="text-green-700 mt-1">库存充足<br>无需关注</div>
+            <div class="text-green-400 mt-1 text-[10px]">不满足以上条件</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const data = [
+      { mainSku: 'MAIN-001', grade: 'A', mainTransit: 20, mainAvail: 150, dailyAvg: 32.5, boxSku: 'BOX-001', boxTransit: 6, boxAvail: 15, boxPlanned: 5, boxDom: 50, boxDaily: 28.0, failure: 58.5, demand: 11.7, calc: 8.2, priority: 442, adjusted: 10, reason: '活动前备货', level: 'R' },
+      { mainSku: 'MAIN-015', grade: 'B', mainTransit: 15, mainAvail: 80, dailyAvg: 28.0, boxSku: 'BOX-015', boxTransit: 3, boxAvail: 8, boxPlanned: 2, boxDom: 12, boxDaily: 22.0, failure: 50.4, demand: 10.1, calc: 20.1, priority: 321, adjusted: 20, reason: '按整箱调拨', level: 'R' },
+      { mainSku: 'MAIN-038', grade: 'A', mainTransit: 30, mainAvail: 200, dailyAvg: 45.0, boxSku: 'BOX-038', boxTransit: 10, boxAvail: 20, boxPlanned: 8, boxDom: 25, boxDaily: 38.0, failure: 81.0, demand: 16.2, calc: 16.2, priority: 445, adjusted: 18, reason: '旺季备货', level: 'R' },
+      { mainSku: 'MAIN-120', grade: 'C', mainTransit: 10, mainAvail: 60, dailyAvg: 40.0, boxSku: 'BOX-120', boxTransit: 3, boxAvail: 8, boxPlanned: 2, boxDom: 30, boxDaily: 35.0, failure: 72.0, demand: 14.4, calc: 3.4, priority: 214, adjusted: 4, reason: '按整箱调拨', level: 'O' },
+      { mainSku: 'MAIN-075', grade: 'B', mainTransit: 12, mainAvail: 90, dailyAvg: 35.0, boxSku: 'BOX-075', boxTransit: 5, boxAvail: 12, boxPlanned: 3, boxDom: 25, boxDaily: 30.0, failure: 63.0, demand: 12.6, calc: 1.6, priority: 222, adjusted: 2, reason: '安全库存', level: 'O' },
+      { mainSku: 'MAIN-042', grade: 'D', mainTransit: 5, mainAvail: 40, dailyAvg: 22.0, boxSku: 'BOX-042', boxTransit: 2, boxAvail: 5, boxPlanned: 1, boxDom: 20, boxDaily: 18.0, failure: 39.6, demand: 7.9, calc: 7.9, priority: 108, adjusted: 8, reason: '按整箱调拨', level: 'O' },
+      { mainSku: 'MAIN-078', grade: 'C', mainTransit: 8, mainAvail: 55, dailyAvg: 25.2, boxSku: 'BOX-078', boxTransit: 4, boxAvail: 9, boxPlanned: 2, boxDom: 15, boxDaily: 20.0, failure: 45.4, demand: 9.1, calc: -3.9, priority: 206, adjusted: 2, reason: '安全库存上调', level: 'Y' },
+      { mainSku: 'MAIN-055', grade: 'D', mainTransit: 20, mainAvail: 120, dailyAvg: 18.0, boxSku: 'BOX-055', boxTransit: 15, boxAvail: 30, boxPlanned: 10, boxDom: 80, boxDaily: 15.0, failure: 32.4, demand: 6.5, calc: -29.5, priority: 101, adjusted: 0, reason: '—', level: 'G' },
+      { mainSku: 'MAIN-032', grade: 'D', mainTransit: 15, mainAvail: 100, dailyAvg: 20.0, boxSku: 'BOX-032', boxTransit: 10, boxAvail: 25, boxPlanned: 8, boxDom: 60, boxDaily: 18.0, failure: 36.0, demand: 7.2, calc: -27.8, priority: 101, adjusted: 0, reason: '—', level: 'G' },
+      { mainSku: 'MAIN-088', grade: 'D', mainTransit: 25, mainAvail: 140, dailyAvg: 15.0, boxSku: 'BOX-088', boxTransit: 20, boxAvail: 40, boxPlanned: 15, boxDom: 100, boxDaily: 12.0, failure: 27.0, demand: 5.4, calc: -54.6, priority: 101, adjusted: 0, reason: '—', level: 'G' },
+    ];
+
+    const levelColors = { R: 'bg-red-100 text-red-700 border-red-200', O: 'bg-orange-100 text-orange-700 border-orange-200', Y: 'bg-yellow-100 text-yellow-700 border-yellow-200', G: 'bg-green-100 text-green-700 border-green-200' };
+    const levelText = { R: 'R 紧急', O: 'O 预警', Y: 'Y 关注', G: 'G 正常' };
+    const gradeColors = { A: 'bg-purple-100 text-purple-700', B: 'bg-blue-100 text-blue-700', C: 'bg-slate-100 text-slate-600', D: 'bg-slate-100 text-slate-400' };
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = data.map(row => `
+        <tr class="hover:bg-slate-50 border-b border-slate-50 ${row.level === 'R' ? 'bg-red-50/30' : ''}">
+          <td class="px-3 py-2.5 font-medium">${row.mainSku}</td>
+          <td class="px-3 py-2.5 text-center"><span class="inline-flex text-xs font-semibold px-2 py-0.5 rounded ${gradeColors[row.grade]}">${row.grade}</span></td>
+          <td class="px-3 py-2.5 text-right">${row.mainTransit}</td>
+          <td class="px-3 py-2.5 text-right">${row.mainAvail}</td>
+          <td class="px-3 py-2.5 text-right">${row.dailyAvg}</td>
+          <td class="px-3 py-2.5">${row.boxSku}</td>
+          <td class="px-3 py-2.5 text-right">${row.boxTransit}</td>
+          <td class="px-3 py-2.5 text-right">${row.boxAvail}</td>
+          <td class="px-3 py-2.5 text-right">${row.boxPlanned}</td>
+          <td class="px-3 py-2.5 text-right">${row.boxDom}</td>
+          <td class="px-3 py-2.5 text-right">${row.boxDaily}</td>
+          <td class="px-3 py-2.5 text-right">${row.demand}</td>
+          <td class="px-3 py-2.5 text-right font-semibold ${row.calc < 0 ? 'text-green-600' : 'text-orange-600'}">${row.calc}</td>
+          <td class="px-3 py-2.5 text-right text-slate-400">${row.priority}</td>
+          <td class="px-3 py-2.5 text-right">${row.adjusted}</td>
+          <td class="px-3 py-2.5 text-xs text-slate-500">${row.reason}</td>
+          <td class="px-3 py-2.5 text-center"><span class="inline-flex text-xs font-semibold px-2 py-0.5 rounded-full border ${levelColors[row.level]}">${levelText[row.level]}</span></td>
+        </tr>
+      `).join('');
+      document.getElementById('count').textContent = data.length;
+    }
+
+    renderTable();
+
+    new Chart(document.getElementById('chartAlert'), {
+      type: 'doughnut',
+      data: { labels: ['R 紧急', 'O 预警', 'Y 关注', 'G 正常'], datasets: [{ data: [3, 12, 7, 48], backgroundColor: ['#ef4444', '#f97316', '#eab308', '#22c55e'], borderWidth: 0 }] },
+      options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { padding: 12 } } } }
+    });
+
+    new Chart(document.getElementById('chartTrend'), {
+      type: 'line',
+      data: {
+        labels: ['第 10 周', '第 11 周', '第 12 周', '第 13 周'],
+        datasets: [
+          { label: '计算调拨量', data: [285, 312, 298, 340], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4 },
+          { label: '实际调拨量', data: [280, 305, 310, 335], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.4 }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 12 } } }, scales: { y: { grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
+    });
+  </script>
+</body>
+</html>

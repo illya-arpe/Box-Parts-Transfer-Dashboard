@@ -177,8 +177,8 @@ flowchart LR
        "黄盒海外仓可用量"   -> box_overseas_available
        "黄盒计划在途量"     -> box_planned_in_transit
        "黄盒90天销量"       -> box_sales_90d
-       "黄盒90天日均销"     -> box_daily_avg_90d
        "黄盒国内仓可用量"   -> box_domestic_available
+       (注意：黄盒日均销 需由 黄盒90天销量 / 90 计算得出，存入 box_daily_avg_90d 字段)
    - 提供 parse_excel(file_bytes, warehouse_id) -> List[ReplenishmentRow] 函数：
      * 用 pandas.read_excel 读取（支持 .xlsx 和 .csv）
      * 缺失必填列时抛 HTTPException 400，错误信息列出缺哪些
