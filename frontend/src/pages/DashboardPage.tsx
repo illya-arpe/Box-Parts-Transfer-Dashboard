@@ -19,7 +19,7 @@ import {
   Popover,
 } from "antd";
 import type { UploadProps } from "antd";
-import { DownloadOutlined, LineChartOutlined, UploadOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { DownloadOutlined, HistoryOutlined, LineChartOutlined, UploadOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 
 import { apiClient } from "../api/client";
 
@@ -35,6 +35,7 @@ type WarehouseOverview = {
   warehouse_name: string;
   region: string | null;
   latest_snapshot_id: number | null;
+  has_archived: boolean;
 };
 
 type SnapshotRow = {
@@ -585,7 +586,19 @@ export default function DashboardPage() {
               filterOption={(input, option) =>
                 (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
               }
-              options={warehouses.map((w) => ({ label: w.warehouse_name, value: w.warehouse_name }))}
+              options={warehouses.map((w) => ({
+                label: (
+                  <Space>
+                    {w.warehouse_name}
+                    {w.has_archived && (
+                      <Tag icon={<HistoryOutlined />} color="default" style={{ margin: 0 }}>
+                        有历史
+                      </Tag>
+                    )}
+                  </Space>
+                ),
+                value: w.warehouse_name,
+              }))}
             />
             <Select
               mode="multiple"

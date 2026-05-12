@@ -24,6 +24,7 @@ class Snapshot(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    is_archived: Mapped[bool] = mapped_column(default=False, index=True)
 
     warehouse: Mapped["Warehouse"] = relationship(back_populates="snapshots")
     replenishment_rows: Mapped[list["ReplenishmentRow"]] = relationship(

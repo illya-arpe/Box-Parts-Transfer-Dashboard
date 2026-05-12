@@ -5,7 +5,7 @@ import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.database import SessionLocal
 from app.models import ReplenishmentRow, Sku, Snapshot, Warehouse
@@ -206,8 +206,15 @@ async def upload_snapshot(
                 session.add(warehouse)
                 session.flush()
 
-            # 创建快照
-            snapshot = Snapshot(warehouse_id=warehouse.id)
+            # 归档同仓库的所有旧快照（自动替换机制）
+            session.execute(
+                update(Snapshot)
+                .where(Snapshot.warehouse_id == warehouse.id, Snapshot.is_archived == False)
+                .values(is_archived=True)
+            )
+
+            # 创建新快照
+            snapshot = Snapshot(warehouse_id=warehouse.id, is_archived=False)
             session.add(snapshot)
             session.flush()
 
@@ -281,16 +288,22 @@ def get_warehouse_overview() -> dict[str, object]:
         for warehouse in warehouses:
             latest_snapshot = session.scalar(
                 select(Snapshot)
-                .where(Snapshot.warehouse_id == warehouse.id)
+                .where(Snapshot.warehouse_id == warehouse.id, Snapshot.is_archived == False)
                 .order_by(Snapshot.id.desc())
                 .limit(1)
             )
+            has_archived = session.scalar(
+                select(Snapshot.id)
+                .where(Snapshot.warehouse_id == warehouse.id, Snapshot.is_archived == True)
+                .limit(1)
+            ) is not None
             data.append(
                 {
                     "warehouse_id": warehouse.id,
                     "warehouse_name": warehouse.name,
                     "region": warehouse.region,
                     "latest_snapshot_id": latest_snapshot.id if latest_snapshot else None,
+                    "has_archived": has_archived,
                 }
             )
         return {"warehouses": data}
@@ -344,6 +357,7 @@ def list_snapshots(warehouse_id: int = Query(...)) -> dict[str, object]:
                     "id": snap.id,
                     "warehouse_id": snap.warehouse_id,
                     "created_at": snap.created_at.isoformat(),
+                    "is_archived": snap.is_archived,
                     **snap_stats.get(snap.id, {
                         "row_count": 0, "alert_r": 0, "alert_o": 0, "alert_y": 0, "alert_g": 0
                     }),
@@ -362,7 +376,7 @@ def get_latest_snapshot_rows_by_warehouse(warehouse_id: int) -> dict[str, object
 
         snapshot = session.scalar(
             select(Snapshot)
-            .where(Snapshot.warehouse_id == warehouse_id)
+            .where(Snapshot.warehouse_id == warehouse_id, Snapshot.is_archived == False)
             .order_by(Snapshot.id.desc())
             .limit(1)
         )
