@@ -163,9 +163,11 @@ export default function DashboardPage() {
         "/api/snapshots/warehouses"
       );
       setWarehouses(warehouseRes.data.warehouses);
+      // 强制重置选择再重新选中，打破 React useEffect 的相同值优化
+      setSelectedWarehouse(null);
       // 自动选中第一个新仓库
       const newWarehouseName = Object.keys(response.data.warehouse_snapshots)[0];
-      setSelectedWarehouse(newWarehouseName);
+      setTimeout(() => setSelectedWarehouse(newWarehouseName), 0);
     } catch (error: unknown) {
       const err = error as {
         response?: { data?: { detail?: { message?: string } | string } };
