@@ -377,7 +377,14 @@ export default function DashboardPage() {
       ],
     },
     {
-      title: "计算结果",
+      title: (
+        <span>
+          计算结果
+          <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="top">
+            <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+          </Popover>
+        </span>
+      ),
       key: "calc_group",
       children: [
         {
@@ -481,13 +488,13 @@ export default function DashboardPage() {
       title: "预警",
       key: "alert_group",
       children: [
-        {
-          title: "预警等级",
-          dataIndex: "alert_level",
-          key: "alert_level",
-          width: 90,
-          render: (v: SnapshotRow["alert_level"]) => alertTag(v),
-        },
+    {
+      title: "预警等级",
+      dataIndex: "alert_level",
+      key: "alert_level",
+      width: 90,
+      render: (v: SnapshotRow["alert_level"]) => alertTag(v),
+    },
       ],
     },
     {
