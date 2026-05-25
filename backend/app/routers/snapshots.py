@@ -1,34 +1,18 @@
-from io import BytesIO
 from urllib.parse import quote
 
 import pandas as pd
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Form, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
-from sqlalchemy import select, update
+from sqlalchemy import select
 
+from app.core.config import REQUIRED_COLUMNS
 from app.database import SessionLocal
 from app.models import ReplenishmentRow, Sku, Snapshot, Warehouse
 from app.services.calculator import calculate_replenishment, row_sort_key
+from app.services.google_sheets import google_sheets_service
 
 router = APIRouter(prefix="/api/snapshots", tags=["snapshots"])
-
-REQUIRED_COLUMNS = [
-    "仓库名",
-    "主品SKU",
-    "主品在途数量",
-    "主品仓库可用量",
-    "主品计划在途量",
-    "主品90天销量",
-    "主品90天日均销",
-    "主品商品等级",
-    "黄盒SKU",
-    "黄盒在途数量",
-    "黄盒海外仓可用量",
-    "黄盒计划在途量",
-    "黄盒90天销量",
-    "黄盒国内仓可用量",
-]
 
 
 def to_float(value: object) -> float:
@@ -93,190 +77,111 @@ def build_rows_payload(rows: list[tuple[ReplenishmentRow, Sku]]) -> list[dict[st
     ]
 
 
-@router.get("/template-columns")
-def get_template_columns() -> dict[str, list[str]]:
-    return {"required_columns": REQUIRED_COLUMNS}
+def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapshot) -> int:
+    """Process DataFrame and create ReplenishmentRow records. Returns inserted row count."""
+    inserted_rows = 0
+    
+    for _, row in df.iterrows():
+        main_sku = str(row["主品SKU"]).strip()
+        if not main_sku or main_sku.lower() == "nan":
+            continue
+
+        calc_result = calculate_replenishment(
+            main_daily_avg_90d=to_float(row["主品90天日均销"]),
+            box_overseas_available=to_float(row["黄盒海外仓可用量"]),
+            box_in_transit=to_float(row["黄盒在途数量"]),
+            box_domestic_available=to_float(row["黄盒国内仓可用量"]),
+        )
+
+        with SessionLocal() as session:
+            sku = session.scalar(select(Sku).where(Sku.sku_code == main_sku))
+            if sku is None:
+                sku = Sku(
+                    sku_code=main_sku,
+                    product_grade=str(row["主品商品等级"]).strip() or None,
+                )
+                session.add(sku)
+                session.flush()
+
+            entry = ReplenishmentRow(
+                snapshot_id=snapshot.id,
+                sku_id=sku.id,
+                box_sku=str(row["黄盒SKU"]).strip(),
+                main_in_transit=to_float(row["主品在途数量"]),
+                main_warehouse_available=to_float(row["主品仓库可用量"]),
+                main_planned_in_transit=to_float(row["主品计划在途量"]),
+                main_sales_90d=to_float(row["主品90天销量"]),
+                main_daily_avg_90d=to_float(row["主品90天日均销"]),
+                box_in_transit=to_float(row["黄盒在途数量"]),
+                box_overseas_available=to_float(row["黄盒海外仓可用量"]),
+                box_planned_in_transit=to_float(row["黄盒计划在途量"]),
+                box_sales_90d=to_float(row["黄盒90天销量"]),
+                box_daily_avg_90d=to_float(row["黄盒90天销量"]),
+                box_domestic_available=to_float(row["黄盒国内仓可用量"]),
+                estimated_failure_qty=calc_result.estimated_failure_qty,
+                estimated_demand_qty=calc_result.estimated_demand_qty,
+                calculated_transfer_qty=calc_result.calculated_transfer_qty,
+                adjusted_transfer_qty=0,
+                alert_level=calc_result.alert_level,
+            )
+            session.add(entry)
+            inserted_rows += 1
+            session.commit()
+    
+    return inserted_rows
 
 
-@router.get("/template")
-def download_template() -> StreamingResponse:
-    workbook = Workbook()
-    ws = workbook.active
-    ws.title = "补货数据"
-
-    headers = [
-        "仓库名",
-        "主品SKU",
-        "主品在途数量",
-        "主品仓库可用量",
-        "主品计划在途量",
-        "主品90天销量",
-        "主品90天日均销",
-        "主品商品等级",
-        "黄盒SKU",
-        "黄盒在途数量",
-        "黄盒海外仓可用量",
-        "黄盒计划在途量",
-        "黄盒90天销量",
-        "黄盒国内仓可用量",
-    ]
-    ws.append(headers)
-
-    example_row = [
-        "泰国仓",
-        "MAIN-001",
-        120,
-        300,
-        80,
-        2925,
-        32.5,
-        "A",
-        "BOX-001",
-        6,
-        15,
-        10,
-        450,
-        200,
-    ]
-    ws.append(example_row)
-
-    for col in ws.columns:
-        max_length = 0
-        col_letter = col[0].column_letter
-        for cell in col:
-            if cell.value:
-                max_length = max(max_length, len(str(cell.value)))
-        ws.column_dimensions[col_letter].width = max(max_length + 4, 14)
-
-    output = BytesIO()
-    workbook.save(output)
-    output.seek(0)
-    filename = quote("黄盒补货模板.xlsx")
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}; filename*=utf-8''{filename}"
-        },
-    )
-
-
-@router.post("/upload")
-async def upload_snapshot(
-    file: UploadFile = File(...),
+@router.post("/from-sheet")
+async def create_snapshot_from_sheet(
+    sheet_url: str = Form(...),
+    warehouse_name: str = Form(...),
+    warehouse_region: str = Form(default=""),
 ) -> dict[str, object]:
-    filename = file.filename or ""
-    if not (filename.endswith(".xlsx") or filename.endswith(".xls")):
-        raise HTTPException(status_code=400, detail="仅支持 .xlsx / .xls 文件")
-
-    content = await file.read()
+    """Create a new snapshot by reading data from a public Google Sheet."""
     try:
-        df = pd.read_excel(BytesIO(content))
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=400, detail=f"Excel 解析失败: {exc}") from exc
+        df = google_sheets_service.read_sheet(sheet_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ConnectionError as e:
+        raise HTTPException(status_code=502, detail=f"无法连接到 Google Sheets: {e}")
 
     missing_columns = [col for col in REQUIRED_COLUMNS if col not in df.columns]
     if missing_columns:
         raise HTTPException(
             status_code=400,
-            detail={"message": "Excel 缺少必填列", "missing_columns": missing_columns},
+            detail={"message": "表格缺少必填列", "missing_columns": missing_columns},
         )
 
     if df.empty:
-        raise HTTPException(status_code=400, detail="Excel 无有效数据行")
-
-    # 按仓库名分组
-    df["仓库名"] = df["仓库名"].fillna("").astype(str).str.strip()
-    warehouse_groups = df.groupby("仓库名")
-
-    total_rows = 0
-    warehouse_snapshots: dict[str, int] = {}
+        raise HTTPException(status_code=400, detail="表格无有效数据行")
 
     with SessionLocal() as session:
-        for warehouse_name, group_df in warehouse_groups:
-            if not warehouse_name or warehouse_name.lower() == "nan":
-                continue
-
-            # 获取或创建仓库
-            warehouse = session.scalar(
-                select(Warehouse).where(Warehouse.name == warehouse_name)
+        warehouse = session.scalar(
+            select(Warehouse).where(Warehouse.name == warehouse_name)
+        )
+        if warehouse is None:
+            warehouse = Warehouse(
+                name=warehouse_name,
+                region=warehouse_region or None,
             )
-            if warehouse is None:
-                warehouse = Warehouse(name=warehouse_name)
-                session.add(warehouse)
-                session.flush()
-
-            # 归档同仓库的所有旧快照（自动替换机制）
-            session.execute(
-                update(Snapshot)
-                .where(Snapshot.warehouse_id == warehouse.id, Snapshot.is_archived == False)
-                .values(is_archived=True)
-            )
-
-            # 创建新快照
-            snapshot = Snapshot(warehouse_id=warehouse.id, is_archived=False)
-            session.add(snapshot)
+            session.add(warehouse)
             session.flush()
 
-            inserted_rows = 0
-            for _, row in group_df.iterrows():
-                main_sku = str(row["主品SKU"]).strip()
-                if not main_sku or main_sku.lower() == "nan":
-                    continue
+        snapshot = Snapshot(warehouse_id=warehouse.id)
+        session.add(snapshot)
+        session.flush()
 
-                calc_result = calculate_replenishment(
-                    main_daily_avg_90d=to_float(row["主品90天日均销"]),
-                    box_overseas_available=to_float(row["黄盒海外仓可用量"]),
-                    box_in_transit=to_float(row["黄盒在途数量"]),
-                    box_domestic_available=to_float(row["黄盒国内仓可用量"]),
-                )
+    # Process rows (outside the session context for thread safety)
+    inserted_rows = _process_dataframe(df, warehouse, snapshot)
 
-                sku = session.scalar(select(Sku).where(Sku.sku_code == main_sku))
-                if sku is None:
-                    sku = Sku(
-                        sku_code=main_sku,
-                        product_grade=str(row["主品商品等级"]).strip() or None,
-                    )
-                    session.add(sku)
-                    session.flush()
-
-                entry = ReplenishmentRow(
-                    snapshot_id=snapshot.id,
-                    sku_id=sku.id,
-                    box_sku=str(row["黄盒SKU"]).strip(),
-                    main_in_transit=to_float(row["主品在途数量"]),
-                    main_warehouse_available=to_float(row["主品仓库可用量"]),
-                    main_planned_in_transit=to_float(row["主品计划在途量"]),
-                    main_sales_90d=to_float(row["主品90天销量"]),
-                    main_daily_avg_90d=to_float(row["主品90天日均销"]),
-                    box_in_transit=to_float(row["黄盒在途数量"]),
-                    box_overseas_available=to_float(row["黄盒海外仓可用量"]),
-                    box_planned_in_transit=to_float(row["黄盒计划在途量"]),
-                    box_sales_90d=to_float(row["黄盒90天销量"]),
-                    box_domestic_available=to_float(row["黄盒国内仓可用量"]),
-                    estimated_failure_qty=calc_result.estimated_failure_qty,
-                    estimated_demand_qty=calc_result.estimated_demand_qty,
-                    calculated_transfer_qty=calc_result.calculated_transfer_qty,
-                    adjusted_transfer_qty=0,
-                    alert_level=calc_result.alert_level,
-                )
-                session.add(entry)
-                inserted_rows += 1
-
-            if inserted_rows > 0:
-                total_rows += inserted_rows
-                warehouse_snapshots[warehouse_name] = snapshot.id
-
-        if total_rows == 0:
-            raise HTTPException(status_code=400, detail="未识别到有效数据（请检查仓库名是否填写）")
-
-        session.commit()
+    if inserted_rows == 0:
+        raise HTTPException(status_code=400, detail="未识别到有效主品SKU数据")
 
     return {
-        "message": "上传成功",
-        "total_rows": total_rows,
-        "warehouses_created": len(warehouse_snapshots),
-        "warehouse_snapshots": warehouse_snapshots,
+        "message": "从 Google Sheets 读取成功",
+        "warehouse_name": warehouse_name,
+        "snapshot_id": snapshot.id,
+        "inserted_rows": inserted_rows,
     }
 
 
@@ -288,22 +193,16 @@ def get_warehouse_overview() -> dict[str, object]:
         for warehouse in warehouses:
             latest_snapshot = session.scalar(
                 select(Snapshot)
-                .where(Snapshot.warehouse_id == warehouse.id, Snapshot.is_archived == False)
-                .order_by(Snapshot.id.desc())
+                .where(Snapshot.warehouse_id == warehouse.id)
+                .order_by(Snapshot.created_at.desc())
                 .limit(1)
             )
-            has_archived = session.scalar(
-                select(Snapshot.id)
-                .where(Snapshot.warehouse_id == warehouse.id, Snapshot.is_archived == True)
-                .limit(1)
-            ) is not None
             data.append(
                 {
                     "warehouse_id": warehouse.id,
                     "warehouse_name": warehouse.name,
                     "region": warehouse.region,
                     "latest_snapshot_id": latest_snapshot.id if latest_snapshot else None,
-                    "has_archived": has_archived,
                 }
             )
         return {"warehouses": data}
@@ -345,7 +244,7 @@ def list_snapshots(warehouse_id: int = Query(...)) -> dict[str, object]:
             session.scalars(
                 select(Snapshot)
                 .where(Snapshot.warehouse_id == warehouse_id)
-                .order_by(Snapshot.id.desc())
+                .order_by(Snapshot.created_at.desc())
             )
             .all()
         )
@@ -357,7 +256,6 @@ def list_snapshots(warehouse_id: int = Query(...)) -> dict[str, object]:
                     "id": snap.id,
                     "warehouse_id": snap.warehouse_id,
                     "created_at": snap.created_at.isoformat(),
-                    "is_archived": snap.is_archived,
                     **snap_stats.get(snap.id, {
                         "row_count": 0, "alert_r": 0, "alert_o": 0, "alert_y": 0, "alert_g": 0
                     }),
@@ -376,8 +274,8 @@ def get_latest_snapshot_rows_by_warehouse(warehouse_id: int) -> dict[str, object
 
         snapshot = session.scalar(
             select(Snapshot)
-            .where(Snapshot.warehouse_id == warehouse_id, Snapshot.is_archived == False)
-            .order_by(Snapshot.id.desc())
+            .where(Snapshot.warehouse_id == warehouse_id)
+            .order_by(Snapshot.created_at.desc())
             .limit(1)
         )
         if snapshot is None:
@@ -493,6 +391,7 @@ def export_snapshot_rows(
                 ]
             )
 
+        from io import BytesIO
         output = BytesIO()
         workbook.save(output)
         output.seek(0)
