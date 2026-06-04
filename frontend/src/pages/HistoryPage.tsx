@@ -38,7 +38,6 @@ type SnapshotMeta = {
   alert_o: number;
   alert_y: number;
   alert_g: number;
-  is_archived: boolean;
 };
 
 type CompareItem = {
@@ -221,7 +220,6 @@ export default function HistoryPage() {
                         title={
                           <Space>
                             <span>{formatDate(snap.created_at)}</span>
-                            {snap.is_archived && <Tag color="default">已归档</Tag>}
                             {snap.alert_r > 0 && (
                               <Tag color="error" style={{ margin: 0 }}>
                                 {snap.alert_r}

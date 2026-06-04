@@ -31,7 +31,7 @@ def get_sku_trend(
             for row in session.execute(
                 select(Snapshot.id)
                 .where(Snapshot.warehouse_id == warehouse_id)
-                .order_by(Snapshot.id.desc())
+                .order_by(Snapshot.created_at.desc())
                 .limit(limit)
             ).all()
         ]

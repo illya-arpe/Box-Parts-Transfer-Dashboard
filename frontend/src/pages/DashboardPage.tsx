@@ -41,6 +41,8 @@ type SnapshotRow = {
   main_sku: string;
   box_sku: string;
   product_grade: string | null;
+  country: string;
+  warehouse_name: string;
   // 主品参数
   main_in_transit: number;
   main_available: number;
@@ -112,6 +114,8 @@ export default function DashboardPage() {
   const [loadingRows, setLoadingRows] = useState(false);
   const [gradeFilter, setGradeFilter] = useState<string[]>([]);
   const [alertFilter, setAlertFilter] = useState<string[]>([]);
+  const [countryFilter, setCountryFilter] = useState<string[]>([]);
+  const [warehouseFilter, setWarehouseFilter] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
   const [activeSnapshotId, setActiveSnapshotId] = useState<number | null>(null);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
@@ -205,12 +209,16 @@ export default function DashboardPage() {
       gradeFilter.includes((row.product_grade || "").toUpperCase());
     const passAlert =
       alertFilter.length === 0 || alertFilter.includes(row.alert_level);
+    const passCountry =
+      countryFilter.length === 0 || countryFilter.includes(row.country);
+    const passWarehouse =
+      warehouseFilter.length === 0 || warehouseFilter.includes(row.warehouse_name);
     const key = keyword.trim().toLowerCase();
     const passKeyword =
       key.length === 0 ||
       row.main_sku.toLowerCase().includes(key) ||
       row.box_sku.toLowerCase().includes(key);
-    return passGrade && passAlert && passKeyword;
+    return passGrade && passAlert && passCountry && passWarehouse && passKeyword;
   });
 
   const summary = filteredRows.reduce(
@@ -566,6 +574,34 @@ export default function DashboardPage() {
               ]}
               value={alertFilter}
               onChange={setAlertFilter}
+            />
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="按国家"
+              style={{ minWidth: 120 }}
+              options={["TH", "VN", "SG", "MY", "ID", "PH"].map((v) => ({
+                label: v,
+                value: v,
+              }))}
+              value={countryFilter}
+              onChange={setCountryFilter}
+            />
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="按仓库名"
+              style={{ minWidth: 200 }}
+              options={[
+                "泰国主仓-AP",
+                "越南胡志明京东仓",
+                "新加坡百世仓",
+                "马来京东仓",
+                "新印尼Flash本地仓",
+                "菲律宾C仓",
+              ].map((v) => ({ label: v, value: v }))}
+              value={warehouseFilter}
+              onChange={setWarehouseFilter}
             />
             <Input.Search
               allowClear

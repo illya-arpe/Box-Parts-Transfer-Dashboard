@@ -45,6 +45,8 @@ def build_rows_payload(rows: list[tuple[ReplenishmentRow, Sku]]) -> list[dict[st
             "main_sku": sku.sku_code,
             "box_sku": row.box_sku,
             "product_grade": sku.product_grade,
+            "country": row.country,
+            "warehouse_name": row.warehouse_name,
             # 主品参数
             "main_in_transit": row.main_in_transit,
             "main_available": row.main_warehouse_available,
@@ -107,6 +109,8 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
                 snapshot_id=snapshot.id,
                 sku_id=sku.id,
                 box_sku=str(row["黄盒SKU"]).strip(),
+                country=str(row.get("国家", "")).strip(),
+                warehouse_name=str(row.get("仓库名", "")).strip(),
                 main_in_transit=to_float(row["主品在途数量"]),
                 main_warehouse_available=to_float(row["主品仓库可用量"]),
                 main_planned_in_transit=to_float(row["主品计划在途量"]),

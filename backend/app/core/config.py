@@ -1,5 +1,16 @@
 from dataclasses import dataclass
 
+COUNTRIES = ["TH", "VN", "SG", "MY", "ID", "PH"]
+
+WAREHOUSES = [
+    "泰国主仓-AP",
+    "越南胡志明京东仓",
+    "新加坡百世仓",
+    "马来京东仓",
+    "新印尼Flash本地仓",
+    "菲律宾C仓",
+]
+
 
 @dataclass(frozen=True)
 class CalculationConfig:
@@ -24,4 +35,6 @@ REQUIRED_COLUMNS = [
     "黄盒计划在途量",
     "黄盒90天销量",
     "黄盒国内仓可用量",
+    "国家",
+    "仓库名",
 ]
