@@ -116,6 +116,8 @@ export default function DashboardPage() {
   const [alertFilter, setAlertFilter] = useState<string[]>([]);
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [warehouseFilter, setWarehouseFilter] = useState<string[]>([]);
+  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
+  const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
   const [activeSnapshotId, setActiveSnapshotId] = useState<number | null>(null);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
@@ -147,8 +149,14 @@ export default function DashboardPage() {
       const response = await apiClient.get<{ rows: SnapshotRow[] }>(
         `/api/snapshots/warehouse/${warehouseId}/latest-rows`
       );
-      setRows(response.data.rows || []);
+      const rowsData = response.data.rows || [];
+      setRows(rowsData);
       setActiveSnapshotId((response.data as { snapshot_id?: number }).snapshot_id || null);
+      // 从数据中提取可用的国家和仓库选项
+      const countries = [...new Set(rowsData.map((r: SnapshotRow) => r.country).filter(Boolean))];
+      const warehouses = [...new Set(rowsData.map((r: SnapshotRow) => r.warehouse_name).filter(Boolean))];
+      setAvailableCountries(countries);
+      setAvailableWarehouses(warehouses);
     } catch {
       message.error("看板数据加载失败");
       setRows([]);
@@ -580,10 +588,7 @@ export default function DashboardPage() {
               allowClear
               placeholder="按国家"
               style={{ minWidth: 120 }}
-              options={["TH", "VN", "SG", "MY", "ID", "PH"].map((v) => ({
-                label: v,
-                value: v,
-              }))}
+              options={availableCountries.map((v) => ({ label: v, value: v }))}
               value={countryFilter}
               onChange={setCountryFilter}
             />
@@ -592,14 +597,7 @@ export default function DashboardPage() {
               allowClear
               placeholder="按仓库名"
               style={{ minWidth: 200 }}
-              options={[
-                "泰国主仓-AP",
-                "越南胡志明京东仓",
-                "新加坡百世仓",
-                "马来京东仓",
-                "新印尼Flash本地仓",
-                "菲律宾C仓",
-              ].map((v) => ({ label: v, value: v }))}
+              options={availableWarehouses.map((v) => ({ label: v, value: v }))}
               value={warehouseFilter}
               onChange={setWarehouseFilter}
             />
