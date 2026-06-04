@@ -18,7 +18,7 @@ import {
   Tooltip,
   Popover,
 } from "antd";
-import { DownloadOutlined, LineChartOutlined, CloudServerOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { DownloadOutlined, LineChartOutlined, CloudServerOutlined, QuestionCircleOutlined, GoogleOutlined } from "@ant-design/icons";
 
 import { apiClient } from "../api/client";
 
@@ -508,38 +508,17 @@ export default function DashboardPage() {
         <Typography.Title level={2} style={{ margin: 0 }}>
           黄盒缺货补货看板
         </Typography.Title>
-        <Card title="数据源">
-          <Space direction="vertical" size={12}>
-            <Typography.Text type="secondary">
-              输入 Google Sheets 公开链接，系统将自动读取数据。
-            </Typography.Text>
-            <Space>
-              <Input
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                style={{ width: 500 }}
-                value={sheetUrl}
-                onChange={(e) => setSheetUrl(e.target.value)}
-                onPressEnter={() => void readFromSheet()}
-              />
-              <Button
-                icon={<CloudServerOutlined />}
-                onClick={() => void readFromSheet()}
-                loading={loading}
-              >
-                从 Google Sheets 读取
-              </Button>
-            </Space>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              提示：请确保表格已设置为"任何人都可以查看"
-            </Typography.Text>
-            {sheetResult && (
-              <Alert
-                type="success"
-                showIcon
-                message={`读取成功：快照 #${sheetResult.snapshot_id}`}
-                description={`仓库：${sheetResult.warehouse_name}，入库行数：${sheetResult.inserted_rows}`}
-              />
-            )}
+        <Card>
+          <Space>
+            <Typography.Text type="secondary">数据源：</Typography.Text>
+            <a
+              href="https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="打开 Google 表格"
+            >
+              <GoogleOutlined style={{ fontSize: 20, color: '#1677ff' }} />
+            </a>
           </Space>
         </Card>
         <Card>

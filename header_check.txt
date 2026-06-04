@@ -1,0 +1,17 @@
+Total columns: 15
+
+1. [å½å®¶] DIFFERENT - expected: [国家]
+2. [ä»åºå] DIFFERENT - expected: [仓库名]
+3. [ä¸»åSKU] DIFFERENT - expected: [主品SKU]
+4. [ä¸»åå¨éæ°é] DIFFERENT - expected: [主品在途数量]
+5. [ä¸»åä»åºå¯ç¨é] DIFFERENT - expected: [主品仓库可用量]
+6. [ä¸»åè®¡åå¨éé] DIFFERENT - expected: [主品计划在途量]
+7. [ä¸»å90å¤©éé] DIFFERENT - expected: [主品90天销量]
+8. [ä¸»å90å¤©æ¥åé] DIFFERENT - expected: [主品90天日均销]
+9. [ä¸»åååç­çº§] DIFFERENT - expected: [主品商品等级]
+10. [é»çSKU] DIFFERENT - expected: [黄盒SKU]
+11. [é»çå¨éæ°é] DIFFERENT - expected: [黄盒在途数量]
+12. [é»çæµ·å¤ä»å¯ç¨é] DIFFERENT - expected: [黄盒海外仓可用量]
+13. [é»çè®¡åå¨éé] DIFFERENT - expected: [黄盒计划在途量]
+14. [é»ç90å¤©éé] DIFFERENT - expected: [黄盒90天销量]
+15. [é»çå½åä»å¯ç¨é] DIFFERENT - expected: [黄盒国内仓可用量]
