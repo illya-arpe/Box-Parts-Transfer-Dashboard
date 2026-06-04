@@ -22,6 +22,8 @@ class CalculationConfig:
 CALCULATION_CONFIG = CalculationConfig()
 
 REQUIRED_COLUMNS = [
+    "国家",
+    "仓库名",
     "主品SKU",
     "主品在途数量",
     "主品仓库可用量",
@@ -35,6 +37,4 @@ REQUIRED_COLUMNS = [
     "黄盒计划在途量",
     "黄盒90天销量",
     "黄盒国内仓可用量",
-    "国家",
-    "仓库名",
 ]

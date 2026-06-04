@@ -318,7 +318,18 @@ export default function DashboardPage() {
   };
 
   const columns = [
-    // 第一行：列分组
+    // 第一行：国家和仓库（固定在最左侧）
+    {
+      title: "分类",
+      key: "category_group",
+      fixed: "left" as const,
+      onHeaderCell: () => ({ style: { background: "#f0f5ff" } }),
+      children: [
+        { title: "国家", dataIndex: "country", key: "country", width: 70, fixed: "left" as const },
+        { title: "仓库名", dataIndex: "warehouse_name", key: "warehouse_name", width: 140, fixed: "left" as const },
+      ],
+    },
+    // 第二行：黄盒
     {
       title: "黄盒",
       key: "box_group",
