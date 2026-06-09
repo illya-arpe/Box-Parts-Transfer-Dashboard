@@ -177,7 +177,7 @@ export default function DashboardPage() {
   }, [activeWarehouseId]);
 
   const activeWarehouseName =
-    warehouses.find((w) => w.warehouse_id === activeWarehouseId)?.warehouse_name || "美国仓";
+    warehouses.find((w) => w.warehouse_id === activeWarehouseId)?.warehouse_name || "";
 
   const SHEET_URL = "https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing";
 
@@ -377,7 +377,7 @@ export default function DashboardPage() {
       key: "main_group",
       onHeaderCell: () => ({ style: { background: "#fff7e6" } }),
       children: [
-        { title: "主品SKU", dataIndex: "main_sku", key: "main_sku", width: 110 },
+        { title: "主品SKU", dataIndex: "main_sku", key: "main_sku", width: 130 },
         { title: "等级", dataIndex: "product_grade", key: "product_grade", width: 60, render: (v: string | null) => gradeTag(v) },
         { title: "主品在途", dataIndex: "main_in_transit", key: "main_in_transit", width: 90, align: "right" as const, render: (v: number) => Math.round(v) },
         { title: "主品仓库可用", dataIndex: "main_available", key: "main_available", width: 110, align: "right" as const, render: (v: number) => Math.round(v) },
