@@ -21,18 +21,29 @@ class CalculationResult:
     alert_level: AlertLevel
 
 
+def get_replacement_ratio(box_sku: str) -> float:
+    sku_upper = box_sku.upper()
+    if "HUAH" in sku_upper:
+        return 0.20
+    if "CAHE" in sku_upper:
+        return 0.10
+    return CALCULATION_CONFIG.replacement_ratio
+
+
 def calculate_replenishment(
     main_daily_avg_90d: float,
     box_overseas_available: float,
     box_in_transit: float,
     box_domestic_available: float,
+    box_sku: str = "",
 ) -> CalculationResult:
     estimated_failure_qty = (
         main_daily_avg_90d
         * CALCULATION_CONFIG.failure_rate
         * CALCULATION_CONFIG.forecast_days
     )
-    estimated_demand_qty = estimated_failure_qty * CALCULATION_CONFIG.replacement_ratio
+    replacement_ratio = get_replacement_ratio(box_sku)
+    estimated_demand_qty = estimated_failure_qty * replacement_ratio
     calculated_transfer_qty = (
         estimated_demand_qty - box_overseas_available - box_in_transit
     )

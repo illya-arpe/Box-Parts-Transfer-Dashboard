@@ -83,9 +83,11 @@ const FORMULA_POPOVER_CONTENT = (
   <div style={{ maxWidth: 360, fontSize: 12, lineHeight: 1.8 }}>
     <div style={{ fontWeight: 600, marginBottom: 8, color: "#1e293b" }}>计算公式</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>发货失败率=2%</div>
-    <div style={{ marginBottom: 6, color: "#64748b" }}>换黄盒比例=20%</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>黄盒SKU含"HUAH"：换黄盒比例=20%</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>黄盒SKU含"CAHE"：换黄盒比例=10%</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>其他SKU：换黄盒比例=20%</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天发货失败件数 = 主品90天日均销 × 发货失败率 × 天数（90）</div>
-    <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天黄盒需求 = 未来90天发货失败件数 × 20%</div>
+    <div style={{ marginBottom: 6, color: "#64748b" }}>预估未来90天黄盒需求 = 未来90天发货失败件数 × 换黄盒比例</div>
     <div style={{ marginBottom: 6, color: "#64748b" }}>调拨量 = 预估需求量 - 海外仓可用量 - 海外仓在途量</div>
     <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0", fontWeight: 600, marginBottom: 8, color: "#1e293b" }}>预警等级说明</div>
     <div style={{ marginBottom: 4, color: "#ef4444" }}><strong>R 紧急</strong>：调拨量&gt;0 且 国内仓可用 &lt; 调拨量 → 库存不足，需立即调拨</div>
@@ -454,7 +456,7 @@ export default function DashboardPage() {
           title: (
             <span>
               预估需求量
-              <Popover content="预估未来90天黄盒需求 = 未来90天发货失败件数 × 20%" trigger="hover" placement="top">
+              <Popover content="预估未来90天黄盒需求 = 未来90天发货失败件数 × 换黄盒比例（含HUAH为20%，含CAHE为10%）" trigger="hover" placement="top">
                 <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
               </Popover>
             </span>

@@ -98,6 +98,7 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
             box_overseas_available=to_float(row["黄盒海外仓可用量"]),
             box_in_transit=to_float(row["黄盒在途数量"]),
             box_domestic_available=to_float(row["黄盒国内仓可用量"]),
+            box_sku=str(row["黄盒SKU"]).strip(),
         )
 
         with SessionLocal() as session:
