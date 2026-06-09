@@ -403,7 +403,14 @@ export default function DashboardPage() {
       key: "calc_group",
       children: [
         {
-          title: "预估失败件数",
+          title: (
+            <span>
+              预估未来90天发货失败件数
+              <Popover content="预估未来90天发货失败件数 = 主品90天日均销 × 发货失败率 × 天数（90）" trigger="hover" placement="top">
+                <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+              </Popover>
+            </span>
+          ),
           dataIndex: "estimated_failure_qty",
           key: "estimated_failure_qty",
           width: 110,
@@ -411,7 +418,14 @@ export default function DashboardPage() {
           render: (v: number) => Math.round(v),
         },
         {
-          title: "预估需求量",
+          title: (
+            <span>
+              预估需求量
+              <Popover content="预估未来90天黄盒需求 = 未来90天发货失败件数 × 20%" trigger="hover" placement="top">
+                <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+              </Popover>
+            </span>
+          ),
           dataIndex: "estimated_demand_qty",
           key: "estimated_demand_qty",
           width: 105,
@@ -419,7 +433,14 @@ export default function DashboardPage() {
           render: (v: number) => Math.round(v),
         },
         {
-          title: "计算调拨量",
+          title: (
+            <span>
+              计算调拨量
+              <Popover content="调拨量 = 预估需求量 - 海外仓可用量 - 海外仓在途量" trigger="hover" placement="top">
+                <QuestionCircleOutlined style={{ marginLeft: 4, color: "#94a3b8", fontSize: 12 }} />
+              </Popover>
+            </span>
+          ),
           dataIndex: "calculated_transfer_qty",
           key: "calculated_transfer_qty",
           width: 105,
@@ -634,9 +655,20 @@ export default function DashboardPage() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
-            <Button icon={<DownloadOutlined />} onClick={exportCurrentView}>
-              导出当前视图
+            <Button
+              type="primary"
+              onClick={() => {
+                if (activeWarehouseId !== null) {
+                  void fetchRows(activeWarehouseId);
+                }
+              }}
+              loading={loadingRows}
+            >
+              搜索
             </Button>
+            <Tooltip title="导出当前视图">
+              <Button icon={<DownloadOutlined />} onClick={exportCurrentView} />
+            </Tooltip>
           </Space>
           <div style={{ position: "sticky", bottom: 0, zIndex: 1 }}>
             <Table
