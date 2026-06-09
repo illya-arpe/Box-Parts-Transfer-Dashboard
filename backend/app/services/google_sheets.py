@@ -8,6 +8,8 @@ import pandas as pd
 import requests
 import urllib3
 
+from app.core.config import SHEET_GID_MAP
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -37,9 +39,40 @@ class GoogleSheetsService:
         return None
 
     @classmethod
+    def _fetch_csv(cls, spreadsheet_id: str, gid: int | None = None) -> str:
+        """Fetch CSV content from spreadsheet. Optionally specify sheet by GID."""
+        csv_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&usp=sharing"
+        if gid is not None:
+            csv_url = f"{csv_url}&gid={gid}"
+
+        proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+        proxies = None
+        if proxy:
+            proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
+
+        response = None
+        errors = []
+        for attempt_proxies in [None, proxies]:
+            try:
+                response = requests.get(csv_url, timeout=30, proxies=attempt_proxies, verify=False)
+                response.raise_for_status()
+                break
+            except requests.RequestException as e:
+                errors.append(f"proxies={attempt_proxies}: {e}")
+                continue
+
+        if response is None:
+            raise ConnectionError(f"Failed to fetch Google Sheet (tried direct & proxy). Errors: {'; '.join(errors)}")
+
+        return response.content.decode('utf-8')
+
+    @classmethod
     def read_sheet(cls, url_or_id: str) -> pd.DataFrame:
         """
-        Read data from a public Google Sheet.
+        Read data from the first sheet of a public Google Sheet.
 
         Args:
             url_or_id: Google Sheets URL or spreadsheet ID
@@ -55,40 +88,58 @@ class GoogleSheetsService:
         if not spreadsheet_id:
             raise ValueError(f"Invalid Google Sheets URL or ID: {url_or_id}")
 
-        # Build CSV export URL
-        csv_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&usp=sharing"
-
-        # Configure proxy from environment or use default
-        proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
-        proxies = None
-        if proxy:
-            proxies = {
-                "http": proxy,
-                "https": proxy,
-            }
-
-        # Try direct first, then proxy (direct tends to be more stable for Google)
-        response = None
-        errors = []
-        for attempt_proxies in [None, proxies]:
-            try:
-                response = requests.get(csv_url, timeout=30, proxies=attempt_proxies, verify=False)
-                response.raise_for_status()
-                break
-            except requests.RequestException as e:
-                errors.append(f"proxies={attempt_proxies}: {e}")
-                continue
-
-        if response is None:
-            raise ConnectionError(f"Failed to fetch Google Sheet (tried direct & proxy). Errors: {'; '.join(errors)}")
-
-        # Parse CSV content with explicit UTF-8 encoding
-        df = pd.read_csv(StringIO(response.content.decode('utf-8')))
-
-        # Clean column names (strip whitespace)
+        content = cls._fetch_csv(spreadsheet_id)
+        df = pd.read_csv(StringIO(content))
         df.columns = df.columns.str.strip()
-
         return df
+
+    @classmethod
+    def read_sheet_by_name(cls, url_or_id: str, sheet_name: str) -> pd.DataFrame:
+        """
+        Read data from a specific sheet by name.
+
+        Args:
+            url_or_id: Google Sheets URL or spreadsheet ID
+            sheet_name: Name of the sheet (e.g., "黄盒数据", "主品数据", "国内仓数据")
+
+        Returns:
+            DataFrame with the sheet data
+
+        Raises:
+            ValueError: If the URL/ID is invalid or sheet_name not found
+            ConnectionError: If unable to fetch the sheet
+        """
+        spreadsheet_id = cls.extract_sheet_id(url_or_id)
+        if not spreadsheet_id:
+            raise ValueError(f"Invalid Google Sheets URL or ID: {url_or_id}")
+
+        gid = SHEET_GID_MAP.get(sheet_name)
+        if gid is None:
+            raise ValueError(f"Unknown sheet name: {sheet_name}. Available: {list(SHEET_GID_MAP.keys())}")
+
+        content = cls._fetch_csv(spreadsheet_id, gid)
+        df = pd.read_csv(StringIO(content))
+        df.columns = df.columns.str.strip()
+        return df
+
+    @classmethod
+    def read_all_sheets(cls, url_or_id: str) -> dict[str, pd.DataFrame]:
+        """
+        Read all configured sheets from a spreadsheet.
+
+        Args:
+            url_or_id: Google Sheets URL or spreadsheet ID
+
+        Returns:
+            Dictionary mapping sheet names to DataFrames
+        """
+        result = {}
+        for sheet_name in SHEET_GID_MAP.keys():
+            try:
+                result[sheet_name] = cls.read_sheet_by_name(url_or_id, sheet_name)
+            except Exception as e:
+                print(f"Warning: Failed to read sheet '{sheet_name}': {e}")
+        return result
 
 
 # Singleton instance

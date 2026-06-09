@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import select
 
-from app.core.config import REQUIRED_COLUMNS
+from app.core.config import REQUIRED_COLUMNS, BOX_SHEET_COLUMNS, MAIN_SHEET_COLUMNS, DOMESTIC_SHEET_COLUMNS, box_sku_to_main_sku
 from app.database import SessionLocal
 from app.models import ReplenishmentRow, Sku, Snapshot, Warehouse
 from app.services.calculator import calculate_replenishment, row_sort_key
@@ -84,13 +84,55 @@ def build_rows_payload(rows: list[tuple[ReplenishmentRow, Sku]]) -> list[dict[st
     ]
 
 
+def _merge_sheets_data(
+    box_df: pd.DataFrame,
+    main_df: pd.DataFrame,
+    domestic_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Merge data from multiple sheets based on 黄盒SKU.
+
+    1. Start with box sheet (黄盒数据) as base
+    2. Derive 主品SKU from 黄盒SKU using conversion rules:
+       - 黄盒SKU = "HUAH-" + 主品SKU  →  主品SKU = 去掉 "HUAH-" 前缀
+       - 黄盒SKU = 主品SKU + "-HUAH"  →  主品SKU = 去掉 "-HUAH" 后缀
+    3. Left join main sheet (主品数据) on derived 主品SKU
+    4. Left join domestic sheet (国内仓数据) on 黄盒SKU
+    """
+    merged = box_df.copy()
+
+    # 创建主品SKU列（从黄盒SKU反推）
+    merged["主品SKU"] = merged["黄盒SKU"].apply(box_sku_to_main_sku)
+
+    # 通过主品SKU匹配主品数据Sheet
+    main_cols_to_merge = [col for col in main_df.columns if col != "主品SKU" and col not in merged.columns]
+    if main_cols_to_merge and not main_df.empty:
+        merged = merged.merge(main_df[["主品SKU"] + main_cols_to_merge], on="主品SKU", how="left")
+
+    # Merge domestic sheet
+    if "黄盒国内仓可用量" not in merged.columns and "黄盒国内仓可用量" in domestic_df.columns:
+        domestic_cols = ["黄盒SKU", "黄盒国内仓可用量"]
+        available_cols = [col for col in domestic_cols if col in domestic_df.columns]
+        if available_cols:
+            merged = merged.merge(domestic_df[available_cols], on="黄盒SKU", how="left")
+
+    return merged
+
+
+def _validate_sheet(df: pd.DataFrame, required_columns: list[str], sheet_name: str) -> list[str]:
+    """Validate sheet has required columns. Returns list of missing columns."""
+    return [col for col in required_columns if col not in df.columns]
+
+
 def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapshot) -> int:
     """Process DataFrame and create ReplenishmentRow records. Returns inserted row count."""
     inserted_rows = 0
-    
+    skipped_no_main_sku = 0
+
     for _, row in df.iterrows():
         main_sku = str(row["主品SKU"]).strip()
-        if not main_sku or main_sku.lower() == "nan":
+        if not main_sku or main_sku.lower() == "nan" or main_sku == "None":
+            skipped_no_main_sku += 1
             continue
 
         calc_result = calculate_replenishment(
@@ -117,17 +159,17 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
                 box_sku=str(row["黄盒SKU"]).strip(),
                 country=str(row.get("国家", "")).strip(),
                 warehouse_name=str(row.get("仓库名", "")).strip(),
-                main_in_transit=to_float(row["主品在途数量"]),
-                main_warehouse_available=to_float(row["主品仓库可用量"]),
-                main_planned_in_transit=to_float(row["主品计划在途量"]),
-                main_sales_90d=to_float(row["主品90天销量"]),
-                main_daily_avg_90d=to_float(row["主品90天日均销"]),
+                main_in_transit=to_float(row.get("主品在途数量", 0)),
+                main_warehouse_available=to_float(row.get("主品仓库可用量", 0)),
+                main_planned_in_transit=to_float(row.get("主品计划在途量", 0)),
+                main_sales_90d=to_float(row.get("主品90天销量", 0)),
+                main_daily_avg_90d=to_float(row.get("主品90天日均销", 0)),
                 box_in_transit=to_float(row["黄盒在途数量"]),
                 box_overseas_available=to_float(row["黄盒海外仓可用量"]),
                 box_planned_in_transit=to_float(row["黄盒计划在途量"]),
                 box_sales_90d=to_float(row["黄盒90天销量"]),
-                box_daily_avg_90d=to_float(row["黄盒90天销量"]),
-                box_domestic_available=to_float(row["黄盒国内仓可用量"]),
+                box_daily_avg_90d=to_float(row.get("黄盒90天日均销", 0)),
+                box_domestic_available=to_float(row.get("黄盒国内仓可用量", 0)),
                 estimated_failure_qty=calc_result.estimated_failure_qty,
                 estimated_demand_qty=calc_result.estimated_demand_qty,
                 calculated_transfer_qty=calc_result.calculated_transfer_qty,
@@ -137,7 +179,10 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
             session.add(entry)
             inserted_rows += 1
             session.commit()
-    
+
+    if skipped_no_main_sku > 0:
+        print(f"[IMPORT] Skipped {skipped_no_main_sku} rows due to unmatched 主品SKU (黄盒SKU does not follow HUAH prefix/suffix rule)")
+
     return inserted_rows
 
 
@@ -147,23 +192,42 @@ async def create_snapshot_from_sheet(
     warehouse_name: str = Form(...),
     warehouse_region: str = Form(default=""),
 ) -> dict[str, object]:
-    """Create a new snapshot by reading data from a public Google Sheet."""
+    """Create a new snapshot by reading data from multiple sheets in a public Google Sheet."""
     try:
-        df = google_sheets_service.read_sheet(sheet_url)
+        # Read all three sheets
+        box_df = google_sheets_service.read_sheet_by_name(sheet_url, "黄盒数据")
+        main_df = google_sheets_service.read_sheet_by_name(sheet_url, "主品数据")
+        domestic_df = google_sheets_service.read_sheet_by_name(sheet_url, "国内仓数据")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except ConnectionError as e:
         raise HTTPException(status_code=502, detail=f"无法连接到 Google Sheets: {e}")
 
-    missing_columns = [col for col in REQUIRED_COLUMNS if col not in df.columns]
-    if missing_columns:
+    # Validate each sheet has required columns
+    missing_box = _validate_sheet(box_df, BOX_SHEET_COLUMNS, "黄盒数据")
+    missing_main = _validate_sheet(main_df, MAIN_SHEET_COLUMNS, "主品数据")
+    missing_domestic = _validate_sheet(domestic_df, DOMESTIC_SHEET_COLUMNS, "国内仓数据")
+
+    all_missing = []
+    if missing_box:
+        all_missing.append({"sheet": "黄盒数据", "missing": missing_box})
+    if missing_main:
+        all_missing.append({"sheet": "主品数据", "missing": missing_main})
+    if missing_domestic:
+        all_missing.append({"sheet": "国内仓数据", "missing": missing_domestic})
+
+    if all_missing:
         raise HTTPException(
             status_code=400,
-            detail={"message": "表格缺少必填列", "missing_columns": missing_columns},
+            detail={"message": "表格缺少必填列", "missing_columns": all_missing},
         )
 
-    if df.empty:
-        raise HTTPException(status_code=400, detail="表格无有效数据行")
+    if box_df.empty:
+        raise HTTPException(status_code=400, detail="黄盒数据Sheet无有效数据行")
+
+    # Merge sheets
+    merged_df = _merge_sheets_data(box_df, main_df, domestic_df)
+    print(f"[IMPORT] Merged sheets: box={len(box_df)}, main={len(main_df)}, domestic={len(domestic_df)} -> merged={len(merged_df)}")
 
     with SessionLocal() as session:
         warehouse = session.scalar(
@@ -184,7 +248,7 @@ async def create_snapshot_from_sheet(
         print(f"[IMPORT] Created warehouse={warehouse.id}({warehouse.name}) snapshot={snapshot.id}")
 
     # Process rows (outside the session context for thread safety)
-    inserted_rows = _process_dataframe(df, warehouse, snapshot)
+    inserted_rows = _process_dataframe(merged_df, warehouse, snapshot)
 
     if inserted_rows == 0:
         raise HTTPException(status_code=400, detail="未识别到有效主品SKU数据")
