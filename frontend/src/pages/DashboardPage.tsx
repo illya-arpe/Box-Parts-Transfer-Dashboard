@@ -104,6 +104,28 @@ const PRIORITY_POPOVER_CONTENT = (
   </div>
 );
 
+// 固定国家选项
+const FIXED_COUNTRIES = [
+  { label: "TH", value: "TH" },
+  { label: "VN", value: "VN" },
+  { label: "SG", value: "SG" },
+  { label: "MY", value: "MY" },
+  { label: "ID", value: "ID" },
+  { label: "PH", value: "PH" },
+  { label: "CN", value: "CN" },
+];
+
+// 固定仓库选项
+const FIXED_WAREHOUSES = [
+  { label: "泰国主仓-AP", value: "泰国主仓-AP" },
+  { label: "越南胡志明京东仓", value: "越南胡志明京东仓" },
+  { label: "新加坡百世仓", value: "新加坡百世仓" },
+  { label: "马来京东仓", value: "马来京东仓" },
+  { label: "新印尼Flash本地仓", value: "新印尼Flash本地仓" },
+  { label: "菲律宾C仓", value: "菲律宾C仓" },
+  { label: "余姚仓", value: "余姚仓" },
+];
+
 export default function DashboardPage() {
   const [sheetResult, setSheetResult] = useState<SheetState>(null);
   const [loading, setLoading] = useState(false);
@@ -115,8 +137,6 @@ export default function DashboardPage() {
   const [alertFilter, setAlertFilter] = useState<string[]>([]);
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [warehouseFilter, setWarehouseFilter] = useState<string[]>([]);
-  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
-  const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
   const [activeSnapshotId, setActiveSnapshotId] = useState<number | null>(null);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
@@ -153,11 +173,6 @@ export default function DashboardPage() {
       const rowsData = response.data.rows || [];
       setRows(rowsData);
       setActiveSnapshotId((response.data as { snapshot_id?: number }).snapshot_id || null);
-      // 从数据中提取可用的国家和仓库选项
-      const countries = [...new Set(rowsData.map((r: SnapshotRow) => r.country).filter(Boolean))];
-      const warehouses = [...new Set(rowsData.map((r: SnapshotRow) => r.warehouse_name).filter(Boolean))];
-      setAvailableCountries(countries);
-      setAvailableWarehouses(warehouses);
     } catch {
       message.error("看板数据加载失败");
       setRows([]);
@@ -307,13 +322,31 @@ export default function DashboardPage() {
   };
 
   const alertTag = (level: SnapshotRow["alert_level"]) => {
-    const map: Record<string, React.ReactNode> = {
-      R: <Tag color="error">R 紧急</Tag>,
-      O: <Tag color="warning">O 预警</Tag>,
-      Y: <Tag color="gold">Y 关注</Tag>,
-      G: <Tag color="success">G 正常</Tag>,
+    const config: Record<string, { tag: React.ReactNode; color: string }> = {
+      R: { tag: <Tag color="error">R 紧急</Tag>, color: "#ff4d4f" },
+      O: { tag: <Tag color="warning">O 预警</Tag>, color: "#fa8c16" },
+      Y: { tag: <Tag color="gold">Y 关注</Tag>, color: "#d4b106" },
+      G: { tag: <Tag color="success">G 正常</Tag>, color: "#52c41a" },
     };
-    return map[level];
+    const { tag, color } = config[level] || config.G;
+    return (
+      <span
+        style={{ cursor: "pointer", color }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setAlertFilter([level]);
+          setTimeout(() => {
+            const tableBody = document.querySelector(".ant-table-body");
+            if (tableBody) {
+              tableBody.scrollTop = 0;
+            }
+          }, 100);
+        }}
+        title={`点击筛选${level}等级`}
+      >
+        {tag}
+      </span>
+    );
   };
 
   const gradeTag = (grade: string | null) => {
@@ -584,16 +617,64 @@ export default function DashboardPage() {
             }))}
           />
           <Space size={12} wrap style={{ marginBottom: 12 }}>
-            <Card size="small">
+            <Card
+              size="small"
+              style={{ cursor: "pointer", transition: "box-shadow 0.2s" }}
+              hoverable
+              onClick={() => {
+                const next = alertFilter.includes("R") && alertFilter.length === 1 ? [] : ["R"];
+                setAlertFilter(next);
+                setTimeout(() => {
+                  const tableBody = document.querySelector(".ant-table-body");
+                  if (tableBody) tableBody.scrollTop = 0;
+                }, 100);
+              }}
+            >
               <Statistic title="紧急（R）" value={summary.R} valueStyle={{ color: "#ff4d4f" }} />
             </Card>
-            <Card size="small">
+            <Card
+              size="small"
+              style={{ cursor: "pointer", transition: "box-shadow 0.2s" }}
+              hoverable
+              onClick={() => {
+                const next = alertFilter.includes("O") && alertFilter.length === 1 ? [] : ["O"];
+                setAlertFilter(next);
+                setTimeout(() => {
+                  const tableBody = document.querySelector(".ant-table-body");
+                  if (tableBody) tableBody.scrollTop = 0;
+                }, 100);
+              }}
+            >
               <Statistic title="预警（O）" value={summary.O} valueStyle={{ color: "#fa8c16" }} />
             </Card>
-            <Card size="small">
+            <Card
+              size="small"
+              style={{ cursor: "pointer", transition: "box-shadow 0.2s" }}
+              hoverable
+              onClick={() => {
+                const next = alertFilter.includes("Y") && alertFilter.length === 1 ? [] : ["Y"];
+                setAlertFilter(next);
+                setTimeout(() => {
+                  const tableBody = document.querySelector(".ant-table-body");
+                  if (tableBody) tableBody.scrollTop = 0;
+                }, 100);
+              }}
+            >
               <Statistic title="关注（Y）" value={summary.Y} valueStyle={{ color: "#d4b106" }} />
             </Card>
-            <Card size="small">
+            <Card
+              size="small"
+              style={{ cursor: "pointer", transition: "box-shadow 0.2s" }}
+              hoverable
+              onClick={() => {
+                const next = alertFilter.includes("G") && alertFilter.length === 1 ? [] : ["G"];
+                setAlertFilter(next);
+                setTimeout(() => {
+                  const tableBody = document.querySelector(".ant-table-body");
+                  if (tableBody) tableBody.scrollTop = 0;
+                }, 100);
+              }}
+            >
               <Statistic title="正常（G）" value={summary.G} valueStyle={{ color: "#52c41a" }} />
             </Card>
             <Popover content={FORMULA_POPOVER_CONTENT} trigger="hover" placement="bottom">
@@ -635,7 +716,7 @@ export default function DashboardPage() {
               allowClear
               placeholder="按国家"
               style={{ minWidth: 120 }}
-              options={availableCountries.map((v) => ({ label: v, value: v }))}
+              options={FIXED_COUNTRIES}
               value={countryFilter}
               onChange={setCountryFilter}
             />
@@ -644,7 +725,7 @@ export default function DashboardPage() {
               allowClear
               placeholder="按仓库名"
               style={{ minWidth: 200 }}
-              options={availableWarehouses.map((v) => ({ label: v, value: v }))}
+              options={FIXED_WAREHOUSES}
               value={warehouseFilter}
               onChange={setWarehouseFilter}
             />
