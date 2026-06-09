@@ -47,6 +47,6 @@ def test_alert_level_yellow() -> None:
 
 
 def test_sort_priority() -> None:
-    high = row_sort_key(product_grade="A", alert_level="R", transfer_qty=5)
-    low = row_sort_key(product_grade="B", alert_level="O", transfer_qty=99)
+    high = row_sort_key(product_grade="0_P0", alert_level="R", transfer_qty=5)
+    low = row_sort_key(product_grade="1_P1", alert_level="O", transfer_qty=99)
     assert high < low

@@ -100,14 +100,13 @@ const PRIORITY_POPOVER_CONTENT = (
     <div style={{ fontWeight: 600, marginBottom: 6, color: "#1e293b" }}>优先级分数</div>
     <div style={{ color: "#64748b", marginBottom: 4 }}>总分 = 预警分 + 等级分×10 + min(调拨量, 99)</div>
     <div style={{ marginBottom: 4 }}>预警分：<span style={{ color: "#ef4444" }}>R=400</span>, <span style={{ color: "#f97316" }}>O=300</span>, <span style={{ color: "#eab308" }}>Y=200</span>, <span style={{ color: "#22c55e" }}>G=100</span></div>
-    <div>等级分：<span style={{ color: "#a855f7" }}>A=30</span>, <span style={{ color: "#3b82f6" }}>B=20</span>, <span style={{ color: "#64748b" }}>C=10</span>, D=0</div>
+    <div>等级分：<span style={{ color: "#ef4444" }}>0_P0=30</span>, <span style={{ color: "#f97316" }}>1_P1=20</span>, <span style={{ color: "#22c55e" }}>2_新品=10</span>, <span style={{ color: "#64748b" }}>其余等级=0</span></div>
   </div>
 );
 
 export default function DashboardPage() {
   const [sheetResult, setSheetResult] = useState<SheetState>(null);
   const [loading, setLoading] = useState(false);
-  const [sheetUrl, setSheetUrl] = useState("");
   const [warehouses, setWarehouses] = useState<WarehouseOverview[]>([]);
   const [activeWarehouseId, setActiveWarehouseId] = useState<number | null>(null);
   const [rows, setRows] = useState<SnapshotRow[]>([]);
@@ -128,6 +127,8 @@ export default function DashboardPage() {
   const [trendSku, setTrendSku] = useState<string | null>(null);
   const [trendPoints, setTrendPoints] = useState<TrendPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
+
+  const [pageSize, setPageSize] = useState(50);
 
   const fetchWarehouses = async () => {
     try {
@@ -178,14 +179,12 @@ export default function DashboardPage() {
   const activeWarehouseName =
     warehouses.find((w) => w.warehouse_id === activeWarehouseId)?.warehouse_name || "美国仓";
 
+  const SHEET_URL = "https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing";
+
   const readFromSheet = async () => {
-    if (!sheetUrl.trim()) {
-      message.warning("请输入 Google Sheets 链接");
-      return;
-    }
     setLoading(true);
     const formData = new FormData();
-    formData.append("sheet_url", sheetUrl.trim());
+    formData.append("sheet_url", SHEET_URL);
     formData.append("warehouse_name", activeWarehouseName);
     formData.append("warehouse_region", "NA");
     try {
@@ -193,8 +192,14 @@ export default function DashboardPage() {
       setSheetResult(response.data);
       message.success("从 Google Sheets 读取成功");
       await fetchWarehouses();
-      if (activeWarehouseId !== null) {
-        await fetchRows(activeWarehouseId);
+      // 重新获取仓库列表，优先选中刚同步的仓库
+      const warehouseListResponse = await apiClient.get<{ warehouses: WarehouseOverview[] }>("/api/snapshots/warehouses");
+      const warehouseList = warehouseListResponse.data.warehouses;
+      const syncedWarehouse = warehouseList.find(w => w.warehouse_name === response.data.warehouse_name);
+      if (syncedWarehouse) {
+        setActiveWarehouseId(syncedWarehouse.warehouse_id);
+      } else if (warehouseList.length > 0) {
+        setActiveWarehouseId(warehouseList[0].warehouse_id);
       }
     } catch (error: unknown) {
       const err = error as {
@@ -313,20 +318,48 @@ export default function DashboardPage() {
 
   const gradeTag = (grade: string | null) => {
     if (!grade) return null;
-    const colorMap: Record<string, string> = { A: "purple", B: "blue", C: "default", D: "default" };
+    const colorMap: Record<string, string> = {
+      "0_P0": "red",
+      "1_P1": "orange",
+      "2_新品": "green",
+      "3_营销品": "cyan",
+      "4_清仓": "lime",
+      "5_停用": "default",
+      "6_维修配件": "geekblue",
+      "7_特价品": "gold",
+      "8_开发中": "purple",
+      "9_非商用品": "volcano",
+      "10000_暂未销售": "default",
+    };
     return <Tag color={colorMap[grade] || "default"}>{grade}</Tag>;
   };
 
   const columns = [
-    // 第一行：国家和仓库（固定在最左侧）
+    // 预警列（固定在最左侧）
+    {
+      title: "预警",
+      key: "alert_group",
+      fixed: "left" as const,
+      onHeaderCell: () => ({ style: { background: "#fff2f0" } }),
+      children: [
+        {
+          title: "预警等级",
+          dataIndex: "alert_level",
+          key: "alert_level",
+          width: 90,
+          fixed: "left" as const,
+          render: (v: SnapshotRow["alert_level"]) => alertTag(v),
+        },
+      ],
+    },
+    // 分类：国家和仓库
     {
       title: "分类",
       key: "category_group",
-      fixed: "left" as const,
       onHeaderCell: () => ({ style: { background: "#f0f5ff" } }),
       children: [
-        { title: "国家", dataIndex: "country", key: "country", width: 70, fixed: "left" as const },
-        { title: "仓库名", dataIndex: "warehouse_name", key: "warehouse_name", width: 140, fixed: "left" as const },
+        { title: "国家", dataIndex: "country", key: "country", width: 70 },
+        { title: "仓库名", dataIndex: "warehouse_name", key: "warehouse_name", width: 140 },
       ],
     },
     // 第二行：黄盒
@@ -467,19 +500,6 @@ export default function DashboardPage() {
       ],
     },
     {
-      title: "预警",
-      key: "alert_group",
-      children: [
-        {
-          title: "预警等级",
-          dataIndex: "alert_level",
-          key: "alert_level",
-          width: 90,
-          render: (v: SnapshotRow["alert_level"]) => alertTag(v),
-        },
-      ],
-    },
-    {
       title: "操作",
       key: "action_group",
       fixed: "right" as const,
@@ -519,6 +539,18 @@ export default function DashboardPage() {
             >
               <GoogleOutlined style={{ fontSize: 20, color: '#1677ff' }} />
             </a>
+            <Button
+              icon={<CloudServerOutlined />}
+              onClick={() => void readFromSheet()}
+              loading={loading}
+            >
+              刷新数据
+            </Button>
+            {sheetResult && (
+              <Typography.Text type="success" style={{ fontSize: 12 }}>
+                已同步：快照 #{sheetResult.snapshot_id}，{sheetResult.inserted_rows} 条
+              </Typography.Text>
+            )}
           </Space>
         </Card>
         <Card>
@@ -555,7 +587,11 @@ export default function DashboardPage() {
               allowClear
               placeholder="按商品等级"
               style={{ minWidth: 160 }}
-              options={["A", "B", "C"].map((x) => ({ label: x, value: x }))}
+              options={[
+                "0_P0", "1_P1", "2_新品", "3_营销品", "4_清仓",
+                "5_停用", "6_维修配件", "7_特价品", "8_开发中",
+                "9_非商用品", "10000_暂未销售",
+              ].map((x) => ({ label: x, value: x }))}
               value={gradeFilter}
               onChange={setGradeFilter}
             />
@@ -602,15 +638,22 @@ export default function DashboardPage() {
               导出当前视图
             </Button>
           </Space>
-          <Table
-            rowKey="row_id"
-            loading={loadingRows}
-            columns={columns}
-            dataSource={filteredRows}
-            pagination={{ pageSize: 10 }}
-            scroll={{ x: 2200 }}
-            size="small"
-          />
+          <div style={{ position: "sticky", bottom: 0, zIndex: 1 }}>
+            <Table
+              rowKey="row_id"
+              loading={loadingRows}
+              columns={columns}
+              dataSource={filteredRows}
+              pagination={{
+                pageSize,
+                showSizeChanger: true,
+                pageSizeOptions: ["50", "100", "300", "500"],
+                onShowSizeChange: (_, size) => setPageSize(size),
+              }}
+              scroll={{ x: 2200, y: 600 }}
+              size="small"
+            />
+          </div>
         </Card>
       </Space>
 

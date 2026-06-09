@@ -30,8 +30,13 @@ def calculate_priority_score(
     calculated_transfer_qty: float,
 ) -> float:
     alert_scores = {"R": 400, "O": 300, "Y": 200, "G": 100}
-    grade_scores = {"A": 30, "B": 20, "C": 10, "D": 0}
-    normalized_grade = (product_grade or "D").upper()
+    grade_scores = {
+        "0_P0": 30, "1_P1": 20, "2_新品": 10,
+        "3_营销品": 0, "4_清仓": 0, "5_停用": 0,
+        "6_维修配件": 0, "7_特价品": 0, "8_开发中": 0,
+        "9_非商用品": 0, "10000_暂未销售": 0,
+    }
+    normalized_grade = (product_grade or "10000_暂未销售")
     alert_score = alert_scores.get(alert_level, 0)
     grade_score = grade_scores.get(normalized_grade, 0)
     qty_score = min(max(calculated_transfer_qty, 0), 99)
@@ -174,6 +179,8 @@ async def create_snapshot_from_sheet(
         snapshot = Snapshot(warehouse_id=warehouse.id)
         session.add(snapshot)
         session.flush()
+        session.commit()
+        print(f"[IMPORT] Created warehouse={warehouse.id}({warehouse.name}) snapshot={snapshot.id}")
 
     # Process rows (outside the session context for thread safety)
     inserted_rows = _process_dataframe(df, warehouse, snapshot)
@@ -301,6 +308,8 @@ def get_snapshot_rows(snapshot_id: int) -> dict[str, object]:
             .all()
         )
 
+        print(f"[DEBUG get_snapshot_rows {snapshot_id}] raw DB rows: {len(rows)}, unique row ids: {len(set(r.id for r, s in rows))}")
+
         sorted_rows = sorted(
             rows,
             key=lambda item: row_sort_key(
@@ -310,7 +319,9 @@ def get_snapshot_rows(snapshot_id: int) -> dict[str, object]:
             ),
         )
 
-        return {"snapshot_id": snapshot_id, "rows": build_rows_payload(sorted_rows)}
+        payload = build_rows_payload(sorted_rows)
+        print(f"[DEBUG get_snapshot_rows {snapshot_id}] payload rows: {len(payload)}, unique row_ids: {len(set(p['row_id'] for p in payload))}")
+        return {"snapshot_id": snapshot_id, "rows": payload}
 
 
 @router.patch("/rows/{row_id}/adjust")

@@ -5,7 +5,11 @@ from app.core.config import CALCULATION_CONFIG
 
 AlertLevel = Literal["R", "O", "Y", "G"]
 
-GRADE_PRIORITY = {"A": 0, "B": 1, "C": 2}
+GRADE_PRIORITY = {
+    "0_P0": 0, "1_P1": 1, "2_新品": 2, "3_营销品": 3,
+    "4_清仓": 4, "5_停用": 5, "6_维修配件": 6, "7_特价品": 7,
+    "8_开发中": 8, "9_非商用品": 9, "10000_暂未销售": 10,
+}
 ALERT_PRIORITY = {"R": 0, "O": 1, "Y": 2, "G": 3}
 
 
@@ -68,7 +72,7 @@ def classify_alert_level(
 
 
 def row_sort_key(product_grade: str | None, alert_level: str, transfer_qty: float) -> tuple:
-    normalized_grade = (product_grade or "C").upper()
+    normalized_grade = (product_grade or "10000_暂未销售")
     return (
         GRADE_PRIORITY.get(normalized_grade, 99),
         ALERT_PRIORITY.get(alert_level, 99),
