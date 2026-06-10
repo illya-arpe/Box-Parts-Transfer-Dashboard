@@ -18,25 +18,25 @@ def _alert_severity(level: str) -> int:
 @router.get("/{sku_code}/trend")
 def get_sku_trend(
     sku_code: str,
-    warehouse_id: int = Query(...),
+    warehouse_name: str = Query(..., description="仓库名称"),
     limit: int = Query(default=12, ge=1, le=100),
 ) -> dict[str, object]:
     with SessionLocal() as session:
-        warehouse = session.get(Warehouse, warehouse_id)
+        warehouse = session.scalar(select(Warehouse).where(Warehouse.name == warehouse_name))
         if warehouse is None:
-            raise HTTPException(status_code=404, detail="仓库不存在")
+            return {"sku_code": sku_code, "warehouse_name": warehouse_name, "points": []}
 
         snapshot_ids = [
             row[0]
             for row in session.execute(
                 select(Snapshot.id)
-                .where(Snapshot.warehouse_id == warehouse_id)
+                .where(Snapshot.warehouse_id == warehouse.id)
                 .order_by(Snapshot.created_at.desc())
                 .limit(limit)
             ).all()
         ]
         if not snapshot_ids:
-            return {"sku_code": sku_code, "warehouse_id": warehouse_id, "points": []}
+            return {"sku_code": sku_code, "warehouse_name": warehouse_name, "points": []}
 
         sku = session.scalar(select(Sku).where(Sku.sku_code == sku_code))
         if sku is None:
@@ -65,4 +65,4 @@ def get_sku_trend(
             for row, snap in rows
         ]
         points.sort(key=lambda p: p["uploaded_at"])
-        return {"sku_code": sku_code, "warehouse_id": warehouse_id, "points": points}
+        return {"sku_code": sku_code, "warehouse_name": warehouse_name, "points": points}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, CSSProperties } from "react";
 import {
   Alert,
   Button,
@@ -131,8 +131,8 @@ const FIXED_WAREHOUSES = [
 export default function DashboardPage() {
   const [sheetResult, setSheetResult] = useState<SheetState>(null);
   const [loading, setLoading] = useState(false);
-  const [warehouses, setWarehouses] = useState<WarehouseOverview[]>([]);
-  const [activeWarehouseId, setActiveWarehouseId] = useState<number | null>(null);
+  const [warehouses, setWarehouses] = useState<string[]>([]);
+  const [activeWarehouseName, setActiveWarehouseName] = useState<string>("");
   const [rows, setRows] = useState<SnapshotRow[]>([]);
   const [loadingRows, setLoadingRows] = useState(false);
   const [gradeFilter, setGradeFilter] = useState<string[]>([]);
@@ -154,27 +154,28 @@ export default function DashboardPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await apiClient.get<{ warehouses: WarehouseOverview[] }>(
-        "/api/snapshots/warehouses"
-      );
-      setWarehouses(response.data.warehouses);
-      if (response.data.warehouses.length > 0 && activeWarehouseId === null) {
-        setActiveWarehouseId(response.data.warehouses[0].warehouse_id);
+      const response = await apiClient.get<{
+        warehouses: { warehouse_name: string; latest_snapshot_id: number | null }[];
+      }>("/api/snapshots/warehouses/latest-snapshots");
+      const names = response.data.warehouses.map((w) => w.warehouse_name);
+      setWarehouses(names);
+      if (names.length > 0 && !activeWarehouseName) {
+        setActiveWarehouseName(names[0]);
       }
     } catch {
       message.error("仓库列表加载失败");
     }
   };
 
-  const fetchRows = async (warehouseId: number) => {
+  const fetchRows = async (warehouseName: string) => {
     setLoadingRows(true);
     try {
-      const response = await apiClient.get<{ rows: SnapshotRow[] }>(
-        `/api/snapshots/warehouse/${warehouseId}/latest-rows`
-      );
-      const rowsData = response.data.rows || [];
-      setRows(rowsData);
-      setActiveSnapshotId((response.data as { snapshot_id?: number }).snapshot_id || null);
+      const response = await apiClient.get<{
+        rows: SnapshotRow[];
+        snapshot_id: number;
+      }>(`/api/snapshots/by-name/${encodeURIComponent(warehouseName)}/latest-rows`);
+      setRows(response.data.rows || []);
+      setActiveSnapshotId(response.data.snapshot_id || null);
     } catch {
       message.error("看板数据加载失败");
       setRows([]);
@@ -188,18 +189,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (activeWarehouseId !== null) {
-      void fetchRows(activeWarehouseId);
+    if (activeWarehouseName) {
+      void fetchRows(activeWarehouseName);
     }
-  }, [activeWarehouseId]);
-
-  const activeWarehouseName =
-    warehouses.find((w) => w.warehouse_id === activeWarehouseId)?.warehouse_name || "";
-
-  const SHEET_URL = "https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing";
+  }, [activeWarehouseName]);
 
   const readFromSheet = async () => {
     setLoading(true);
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing";
     const formData = new FormData();
     formData.append("sheet_url", SHEET_URL);
     formData.append("warehouse_name", activeWarehouseName);
@@ -208,17 +205,8 @@ export default function DashboardPage() {
       const response = await apiClient.post<SheetState>("/api/snapshots/from-sheet", formData);
       setSheetResult(response.data);
       message.success("从 Google Sheets 读取成功");
-      await fetchWarehouses();
-      // 重新获取仓库列表，优先选中刚同步的仓库
-      const warehouseListResponse = await apiClient.get<{ warehouses: WarehouseOverview[] }>("/api/snapshots/warehouses");
-      const warehouseList = warehouseListResponse.data.warehouses;
-      const syncedWarehouse = warehouseList.find(w => w.warehouse_name === response.data.warehouse_name);
-      const targetWarehouseId = syncedWarehouse ? syncedWarehouse.warehouse_id :
-        (warehouseList.length > 0 ? warehouseList[0].warehouse_id : activeWarehouseId);
-      if (targetWarehouseId !== null && targetWarehouseId !== undefined) {
-        setActiveWarehouseId(targetWarehouseId);
-        await fetchRows(targetWarehouseId);
-      }
+      // 重新获取该仓库的最新数据
+      await fetchRows(activeWarehouseName);
     } catch (error: unknown) {
       const err = error as {
         response?: { data?: { detail?: { message?: string } | string } };
@@ -307,20 +295,20 @@ export default function DashboardPage() {
     }
   };
 
-  const handleTrend = async (skuCode: string, warehouseId: number) => {
+  const handleTrend = async (skuCode: string, warehouseName: string) => {
     setTrendSku(skuCode);
     setTrendModalOpen(true);
     setTrendLoading(true);
     setTrendPoints([]);
     try {
       const r = await apiClient.get<{ points: TrendPoint[] }>(
-        `/api/skus/${encodeURIComponent(skuCode)}/trend?warehouse_id=${warehouseId}&limit=12`
+        `/api/skus/${encodeURIComponent(skuCode)}/trend?warehouse_name=${encodeURIComponent(warehouseName)}&limit=12`
       );
       setTrendPoints(r.data.points);
     } catch {
       message.error("趋势数据加载失败");
     } finally {
-      setTrendLoading(false);
+      setLoadingRows(false);
     }
   };
 
@@ -567,11 +555,11 @@ export default function DashboardPage() {
           width: 60,
           fixed: "right" as const,
           render: (_: unknown, record: SnapshotRow) =>
-            activeWarehouseId ? (
+            activeWarehouseName ? (
               <Button
                 size="small"
                 icon={<LineChartOutlined />}
-                onClick={() => handleTrend(record.main_sku, activeWarehouseId)}
+                onClick={() => handleTrend(record.main_sku, activeWarehouseName)}
               />
             ) : null,
         },
@@ -612,11 +600,11 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <Tabs
-            activeKey={String(activeWarehouseId || "")}
-            onChange={(key) => setActiveWarehouseId(Number(key))}
-            items={warehouses.map((w) => ({
-              key: String(w.warehouse_id),
-              label: w.warehouse_name,
+            activeKey={activeWarehouseName}
+            onChange={(key) => setActiveWarehouseName(key)}
+            items={warehouses.map((name) => ({
+              key: name,
+              label: name,
             }))}
           />
           <Space size={12} wrap style={{ marginBottom: 12 }}>
@@ -742,8 +730,8 @@ export default function DashboardPage() {
             <Button
               type="primary"
               onClick={() => {
-                if (activeWarehouseId !== null) {
-                  void fetchRows(activeWarehouseId);
+                if (activeWarehouseName) {
+                  void fetchRows(activeWarehouseName);
                 }
               }}
               loading={loadingRows}
@@ -818,13 +806,13 @@ export default function DashboardPage() {
 }
 
 function TrendChartEmbed({ points }: { points: TrendPoint[] }) {
-  const [ReactECharts, setReactECharts] = useState<typeof import("echarts-for-react") | null>(null);
+  const [EChartsReact, setEChartsReact] = useState<React.ComponentType<{ option: object; style?: React.CSSProperties }> | null>(null);
 
   useEffect(() => {
-    import("echarts-for-react").then((mod) => setReactECharts(mod.default));
+    import("echarts-for-react").then((mod) => setEChartsReact(() => mod.default));
   }, []);
 
-  if (!ReactECharts || points.length === 0) return null;
+  if (!EChartsReact || points.length === 0) return null;
 
   const dates = points.map((p) => p.uploaded_at.replace("T", " ").slice(0, 16));
   const option = {
@@ -861,5 +849,5 @@ function TrendChartEmbed({ points }: { points: TrendPoint[] }) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: 320 }} />;
+  return <EChartsReact option={option} style={{ height: 320 }} />;
 }

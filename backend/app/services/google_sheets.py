@@ -53,27 +53,39 @@ class GoogleSheetsService:
         if proxy:
             proxies = {"http": proxy, "https": proxy}
 
-        for attempt_proxies in [None, proxies]:
-            try:
-                response = requests.get(csv_url, timeout=30, proxies=attempt_proxies, verify=False)
-                response.raise_for_status()
+        last_error = None
+        max_attempts = 5
 
-                # 尝试多种编码
-                for encoding in ['utf-8-sig', 'utf-8', 'gb18030', 'gbk', 'gb2312']:
-                    try:
-                        text = response.content.decode(encoding)
-                        # 检查是否有有效的 CSV 内容（有逗号分隔符）
-                        if ',' in text and len(text) > 50:
-                            return text
-                    except (UnicodeDecodeError, LookupError):
+        for attempt in range(max_attempts):
+            for attempt_proxies in [proxies, None]:
+                try:
+                    response = requests.get(
+                        csv_url,
+                        timeout=60,
+                        proxies=attempt_proxies,
+                        verify=False,
+                        allow_redirects=True
+                    )
+                    response.raise_for_status()
+
+                    if len(response.content) < 100:
+                        last_error = f"响应内容过小 ({len(response.content)} bytes)"
                         continue
 
-                # 最后用 errors='replace'
-                return response.content.decode('utf-8', errors='replace')
-            except requests.RequestException:
-                continue
+                    for encoding in ['utf-8-sig', 'utf-8', 'gb18030', 'gbk', 'gb2312']:
+                        try:
+                            text = response.content.decode(encoding)
+                            if ',' in text and len(text) > 50:
+                                return text
+                        except (UnicodeDecodeError, LookupError):
+                            continue
 
-        raise ConnectionError(f"无法连接到 Google Sheets (spreadsheet_id={spreadsheet_id}, gid={gid})")
+                    return response.content.decode('utf-8', errors='replace')
+                except requests.RequestException as e:
+                    last_error = str(e)
+                    continue
+
+        raise ConnectionError(f"无法连接到 Google Sheets (spreadsheet_id={spreadsheet_id}, gid={gid}): {last_error}")
 
     @classmethod
     def _is_valid_csv(cls, text: str) -> bool:

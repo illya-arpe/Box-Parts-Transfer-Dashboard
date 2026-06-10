@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import pandas as pd
 
 COUNTRIES = ["TH", "VN", "SG", "MY", "ID", "PH"]
 
@@ -74,7 +75,7 @@ SHEET_GID_MAP = {
 }
 
 
-def box_sku_to_main_sku(box_sku: str) -> str | None:
+def box_sku_to_main_sku(box_sku: str | float) -> str | None:
     """
     将黄盒SKU转换为主品SKU。
 
@@ -87,7 +88,10 @@ def box_sku_to_main_sku(box_sku: str) -> str | None:
         HUAH-ZFBA007PK00        → ZFBA007PK00
         B0004DSLU002WH00-HUAH   → B0004DSLU002WH00
     """
-    box_sku = box_sku.strip()
+    if box_sku is None or (isinstance(box_sku, float) and pd.isna(box_sku)):
+        return None
+
+    box_sku = str(box_sku).strip()
 
     # 规则1: HUAH- 前缀
     if box_sku.startswith("HUAH-"):

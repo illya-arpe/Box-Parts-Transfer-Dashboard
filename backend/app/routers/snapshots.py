@@ -15,6 +15,17 @@ from app.services.google_sheets import google_sheets_service
 router = APIRouter(prefix="/api/snapshots", tags=["snapshots"])
 
 
+FIXED_WAREHOUSE_NAMES = [
+    "泰国主仓-AP",
+    "越南胡志明京东仓",
+    "新加坡百世仓",
+    "马来京东仓",
+    "新印尼Flash本地仓",
+    "菲律宾C仓",
+    "余姚仓",
+]
+
+
 def to_float(value: object) -> float:
     if pd.isna(value):
         return 0.0
@@ -22,6 +33,26 @@ def to_float(value: object) -> float:
         return float(value)
     except (ValueError, TypeError):
         return 0.0
+
+
+# 列名别名映射（表格列名 -> 标准列名）
+COLUMN_ALIAS_MAP: dict[str, str] = {
+    "主品在途数": "主品在途数量",
+    "主品在途": "主品在途数量",
+    "主品可用": "主品仓库可用量",
+    "主品可用量": "主品仓库可用量",
+    "黄盒国内仓可用": "黄盒国内仓可用量",
+    "黄盒国内仓可用量": "黄盒国内仓可用量",
+}
+
+
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize column names by applying alias mapping."""
+    df = df.copy()
+    df.columns = [COLUMN_ALIAS_MAP.get(col, col) for col in df.columns]
+    # Remove duplicate columns (keep first)
+    df = df.loc[:, ~df.columns.duplicated()]
+    return df
 
 
 def find_column_value(row_or_df: pd.Series | pd.DataFrame, target_name: str) -> object:
@@ -241,6 +272,7 @@ async def create_snapshot_from_sheet(
     # 读取黄盒数据 Sheet（必须有）
     try:
         box_df = google_sheets_service.read_sheet_by_name(sheet_url, "黄盒数据")
+        box_df = _normalize_columns(box_df)
     except (ValueError, ConnectionError) as e:
         raise HTTPException(
             status_code=400,
@@ -291,17 +323,26 @@ async def create_snapshot_from_sheet(
     merged_df = _merge_sheets_data(box_df, main_df, domestic_df)
     print(f"[IMPORT] Merged: box={len(box_df)}, main={len(main_df) if main_df is not None else 0}, domestic={len(domestic_df) if domestic_df is not None else 0} -> merged={len(merged_df)}")
 
+    if warehouse_name not in FIXED_WAREHOUSE_NAMES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": f"不支持的仓库名称：{warehouse_name}",
+                "hint": f"仅支持：{', '.join(FIXED_WAREHOUSE_NAMES)}",
+            }
+        )
+
     with SessionLocal() as session:
         warehouse = session.scalar(
             select(Warehouse).where(Warehouse.name == warehouse_name)
         )
         if warehouse is None:
-            warehouse = Warehouse(
-                name=warehouse_name,
-                region=warehouse_region or None,
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": f"仓库「{warehouse_name}」在数据库中不存在，请先在数据库中创建",
+                }
             )
-            session.add(warehouse)
-            session.flush()
 
         snapshot = Snapshot(warehouse_id=warehouse.id)
         session.add(snapshot)
@@ -324,27 +365,66 @@ async def create_snapshot_from_sheet(
     }
 
 
-@router.get("/warehouses")
-def get_warehouse_overview() -> dict[str, object]:
+@router.get("/warehouses/latest-snapshots")
+def get_warehouses_with_latest_snapshots() -> dict[str, object]:
+    """返回固定仓库列表及其最新快照ID，供前端按仓库名查询数据。"""
     with SessionLocal() as session:
-        warehouses = session.scalars(select(Warehouse)).all()
         data = []
-        for warehouse in warehouses:
-            latest_snapshot = session.scalar(
-                select(Snapshot)
-                .where(Snapshot.warehouse_id == warehouse.id)
-                .order_by(Snapshot.created_at.desc())
-                .limit(1)
-            )
-            data.append(
-                {
-                    "warehouse_id": warehouse.id,
-                    "warehouse_name": warehouse.name,
-                    "region": warehouse.region,
-                    "latest_snapshot_id": latest_snapshot.id if latest_snapshot else None,
-                }
-            )
+        for name in FIXED_WAREHOUSE_NAMES:
+            warehouse = session.scalar(select(Warehouse).where(Warehouse.name == name))
+            latest_snapshot_id = None
+            if warehouse:
+                snapshot = session.scalar(
+                    select(Snapshot)
+                    .where(Snapshot.warehouse_id == warehouse.id)
+                    .order_by(Snapshot.created_at.desc())
+                    .limit(1)
+                )
+                latest_snapshot_id = snapshot.id if snapshot else None
+            data.append({
+                "warehouse_name": name,
+                "latest_snapshot_id": latest_snapshot_id,
+            })
         return {"warehouses": data}
+
+
+@router.get("/by-name/{warehouse_name}/latest-rows")
+def get_latest_rows_by_warehouse_name(warehouse_name: str) -> dict[str, object]:
+    """按仓库名获取最新快照数据。"""
+    if warehouse_name not in FIXED_WAREHOUSE_NAMES:
+        raise HTTPException(status_code=404, detail=f"不支持的仓库名称：{warehouse_name}")
+
+    with SessionLocal() as session:
+        warehouse = session.scalar(select(Warehouse).where(Warehouse.name == warehouse_name))
+        if warehouse is None:
+            return {"warehouse_name": warehouse_name, "snapshot_id": None, "rows": []}
+
+        snapshot = session.scalar(
+            select(Snapshot)
+            .where(Snapshot.warehouse_id == warehouse.id)
+            .order_by(Snapshot.created_at.desc())
+            .limit(1)
+        )
+        if snapshot is None:
+            return {"warehouse_name": warehouse_name, "snapshot_id": None, "rows": []}
+
+        rows = (
+            session.query(ReplenishmentRow, Sku)
+            .join(Sku, Sku.id == ReplenishmentRow.sku_id)
+            .filter(ReplenishmentRow.snapshot_id == snapshot.id)
+            .all()
+        )
+
+        sorted_rows = sorted(
+            rows,
+            key=lambda item: row_sort_key(
+                product_grade=item[1].product_grade,
+                alert_level=item[0].alert_level,
+                transfer_qty=item[0].calculated_transfer_qty,
+            ),
+        )
+        payload = build_rows_payload(sorted_rows)
+        return {"warehouse_name": warehouse_name, "snapshot_id": snapshot.id, "rows": payload}
 
 
 @router.get("")
