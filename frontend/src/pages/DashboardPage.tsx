@@ -213,10 +213,11 @@ export default function DashboardPage() {
       const warehouseListResponse = await apiClient.get<{ warehouses: WarehouseOverview[] }>("/api/snapshots/warehouses");
       const warehouseList = warehouseListResponse.data.warehouses;
       const syncedWarehouse = warehouseList.find(w => w.warehouse_name === response.data.warehouse_name);
-      if (syncedWarehouse) {
-        setActiveWarehouseId(syncedWarehouse.warehouse_id);
-      } else if (warehouseList.length > 0) {
-        setActiveWarehouseId(warehouseList[0].warehouse_id);
+      const targetWarehouseId = syncedWarehouse ? syncedWarehouse.warehouse_id :
+        (warehouseList.length > 0 ? warehouseList[0].warehouse_id : activeWarehouseId);
+      if (targetWarehouseId !== null && targetWarehouseId !== undefined) {
+        setActiveWarehouseId(targetWarehouseId);
+        await fetchRows(targetWarehouseId);
       }
     } catch (error: unknown) {
       const err = error as {
