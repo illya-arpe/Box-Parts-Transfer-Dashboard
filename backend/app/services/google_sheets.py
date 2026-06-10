@@ -58,11 +58,14 @@ class GoogleSheetsService:
                 response = requests.get(csv_url, timeout=30, proxies=attempt_proxies, verify=False)
                 response.raise_for_status()
 
-                # 尝试 UTF-8，失败则尝试 GBK
-                for encoding in ['utf-8', 'gbk', 'gb2312', 'utf-8-sig']:
+                # 尝试多种编码
+                for encoding in ['utf-8-sig', 'utf-8', 'gb18030', 'gbk', 'gb2312']:
                     try:
-                        return response.content.decode(encoding)
-                    except UnicodeDecodeError:
+                        text = response.content.decode(encoding)
+                        # 检查是否有有效的 CSV 内容（有逗号分隔符）
+                        if ',' in text and len(text) > 50:
+                            return text
+                    except (UnicodeDecodeError, LookupError):
                         continue
 
                 # 最后用 errors='replace'
@@ -80,17 +83,20 @@ class GoogleSheetsService:
         text_lower = text.lower().strip()
         if '<!doctype html>' in text_lower or '<html' in text_lower:
             return False
+        # 检查是否有逗号分隔符（CSV 的基本特征）
+        if ',' not in text:
+            return False
         return True
 
     @classmethod
-    def _scan_gids(cls, spreadsheet_id: str) -> list[tuple[int, str]]:
-        """Scan GIDs 0-10 to find valid sheets. Returns list of (gid, first_line) tuples."""
+    def _scan_gids(cls, spreadsheet_id: str, max_gid: int = 100) -> list[tuple[int, str]]:
+        """Scan GIDs 0-max_gid to find valid sheets. Returns list of (gid, first_line) tuples."""
         cache_key = spreadsheet_id
         if cache_key in cls._scan_cache:
             return cls._scan_cache[cache_key]
 
         results = []
-        for gid in range(11):
+        for gid in range(max_gid + 1):
             try:
                 text = cls._fetch_csv(spreadsheet_id, gid=gid)
                 if cls._is_valid_csv(text):
@@ -100,6 +106,9 @@ class GoogleSheetsService:
                 continue
 
         cls._scan_cache[cache_key] = results
+        print(f"[DISCOVER] Scanned GIDs 0-{max_gid}, found {len(results)} valid sheets")
+        for gid, first in results:
+            print(f"  GID={gid}: {first[:80]}")
         return results
 
     @classmethod
@@ -141,8 +150,8 @@ class GoogleSheetsService:
             raise ConnectionError("Google Sheet 返回了 HTML 错误页面，请确认表格已设置为「任何人都可查看」")
 
         df = pd.read_csv(StringIO(content))
-        # 清洗列名：去除末尾分号、空格等干扰字符
-        df.columns = df.columns.str.strip().str.rstrip(';').str.strip()
+        # 清洗列名：取分号前的部分作为实际列名
+        df.columns = [col.split(';')[0].strip() for col in df.columns]
         return df
 
     @classmethod
@@ -181,8 +190,8 @@ class GoogleSheetsService:
             )
 
         df = pd.read_csv(StringIO(content))
-        # 清洗列名：去除末尾分号、空格等干扰字符
-        df.columns = df.columns.str.strip().str.rstrip(';').str.strip()
+        # 清洗列名：取分号前的部分作为实际列名
+        df.columns = [col.split(';')[0].strip() for col in df.columns]
         return df
 
     @classmethod

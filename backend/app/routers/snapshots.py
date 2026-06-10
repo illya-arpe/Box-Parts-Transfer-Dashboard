@@ -24,6 +24,34 @@ def to_float(value: object) -> float:
         return 0.0
 
 
+def find_column_value(row_or_df: pd.Series | pd.DataFrame, target_name: str) -> object:
+    """Find column value from a DataFrame or Series by exact or prefix match."""
+    # If it's a Series (row), just look it up directly
+    if isinstance(row_or_df, pd.Series):
+        if target_name in row_or_df.index:
+            return row_or_df[target_name]
+        # Try prefix match on index
+        for idx in row_or_df.index:
+            if isinstance(idx, str) and idx.startswith(target_name):
+                return row_or_df[idx]
+        return None
+    
+    # If it's a DataFrame
+    if target_name in row_or_df.columns:
+        return row_or_df[target_name]
+    # Prefix match
+    for col in row_or_df.columns:
+        if isinstance(col, str) and col.startswith(target_name):
+            return row_or_df[col]
+    return None
+
+
+def get_column_value(row_or_df: pd.Series | pd.DataFrame, target_name: str, default: object = None) -> object:
+    """Get column value with fallback to default."""
+    val = find_column_value(row_or_df, target_name)
+    return val if val is not None else default
+
+
 def calculate_priority_score(
     alert_level: str,
     product_grade: str | None,
@@ -133,18 +161,22 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
     inserted_rows = 0
     skipped_no_main_sku = 0
 
+    # 打印列名以便调试
+    print(f"[IMPORT] DataFrame columns: {list(df.columns)}")
+
     for _, row in df.iterrows():
-        main_sku = str(row["主品SKU"]).strip()
+        main_sku_val = get_column_value(row, "主品SKU")
+        main_sku = str(main_sku_val).strip() if main_sku_val is not None else ""
         if not main_sku or main_sku.lower() == "nan" or main_sku == "None":
             skipped_no_main_sku += 1
             continue
 
         calc_result = calculate_replenishment(
-            main_daily_avg_90d=to_float(row.get("主品90天日均销", 0)),
-            box_overseas_available=to_float(row.get("黄盒海外仓可用量", 0)),
-            box_in_transit=to_float(row.get("黄盒在途数量", 0)),
-            box_domestic_available=to_float(row.get("黄盒国内仓可用量", 0)),
-            box_sku=str(row.get("黄盒SKU", "")).strip(),
+            main_daily_avg_90d=to_float(get_column_value(row, "主品90天日均销", 0)),
+            box_overseas_available=to_float(get_column_value(row, "黄盒海外仓可用量", 0)),
+            box_in_transit=to_float(get_column_value(row, "黄盒在途数量", 0)),
+            box_domestic_available=to_float(get_column_value(row, "黄盒国内仓可用量", 0)),
+            box_sku=str(get_column_value(row, "黄盒SKU", "")).strip(),
         )
 
         with SessionLocal() as session:
@@ -152,7 +184,7 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
             if sku is None:
                 sku = Sku(
                     sku_code=main_sku,
-                    product_grade=str(row.get("主品商品等级", "")).strip() or None,
+                    product_grade=str(get_column_value(row, "主品商品等级", "") or "").strip() or None,
                 )
                 session.add(sku)
                 session.flush()
@@ -160,20 +192,20 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
             entry = ReplenishmentRow(
                 snapshot_id=snapshot.id,
                 sku_id=sku.id,
-                box_sku=str(row.get("黄盒SKU", "")).strip(),
-                country=str(row.get("国家", "")).strip(),
-                warehouse_name=str(row.get("仓库名", "")).strip(),
-                main_in_transit=to_float(row.get("主品在途数量", 0)),
-                main_warehouse_available=to_float(row.get("主品仓库可用量", 0)),
-                main_planned_in_transit=to_float(row.get("主品计划在途量", 0)),
-                main_sales_90d=to_float(row.get("主品90天销量", 0)),
-                main_daily_avg_90d=to_float(row.get("主品90天日均销", 0)),
-                box_in_transit=to_float(row.get("黄盒在途数量", 0)),
-                box_overseas_available=to_float(row.get("黄盒海外仓可用量", 0)),
-                box_planned_in_transit=to_float(row.get("黄盒计划在途量", 0)),
-                box_sales_90d=to_float(row.get("黄盒90天销量", 0)),
-                box_daily_avg_90d=to_float(row.get("黄盒90天日均销", 0)),
-                box_domestic_available=to_float(row.get("黄盒国内仓可用量", 0)),
+                box_sku=str(get_column_value(row, "黄盒SKU", "")).strip(),
+                country=str(get_column_value(row, "国家", "")).strip(),
+                warehouse_name=str(get_column_value(row, "仓库名", "")).strip(),
+                main_in_transit=to_float(get_column_value(row, "主品在途数量", 0)),
+                main_warehouse_available=to_float(get_column_value(row, "主品仓库可用量", 0)),
+                main_planned_in_transit=to_float(get_column_value(row, "主品计划在途量", 0)),
+                main_sales_90d=to_float(get_column_value(row, "主品90天销量", 0)),
+                main_daily_avg_90d=to_float(get_column_value(row, "主品90天日均销", 0)),
+                box_in_transit=to_float(get_column_value(row, "黄盒在途数量", 0)),
+                box_overseas_available=to_float(get_column_value(row, "黄盒海外仓可用量", 0)),
+                box_planned_in_transit=to_float(get_column_value(row, "黄盒计划在途量", 0)),
+                box_sales_90d=to_float(get_column_value(row, "黄盒90天销量", 0)),
+                box_daily_avg_90d=to_float(get_column_value(row, "黄盒90天日均销", 0)),
+                box_domestic_available=to_float(get_column_value(row, "黄盒国内仓可用量", 0)),
                 estimated_failure_qty=calc_result.estimated_failure_qty,
                 estimated_demand_qty=calc_result.estimated_demand_qty,
                 calculated_transfer_qty=calc_result.calculated_transfer_qty,
