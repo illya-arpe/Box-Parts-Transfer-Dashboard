@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>黄盒补货看板</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface-hover: #f8fafc;
+      --border: #e2e8f0;
+      --border-light: #f1f5f9;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #eef2ff;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --caution: #eab308;
+      --caution-light: #fefce8;
+      --success: #059669;
+      --success-light: #f0fdf4;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* ========== Header ========== */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.025em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .title-icon {
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .subtitle {
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+      margin-top: 4px;
+      margin-left: 48px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 999px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-dot.error {
+      background: #fca5a5;
+      animation: none;
+    }
+
+    .status-dot.ok {
+      background: #86efac;
+    }
+
+    .last-updated {
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+      margin-top: 16px;
+      margin-left: 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========== Config Section ========== */
+    .config {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .sheet-trigger {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 260px;
+      user-select: none;
+    }
+
+    .sheet-trigger:hover {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+      transform: translateY(-1px);
+    }
+
+    .sheet-trigger:active {
+      transform: translateY(0);
+    }
+
+    .sheet-icon {
+      width: 40px;
+      height: 40px;
+      background: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+    }
+
+    .sheet-trigger:hover .sheet-icon {
+      color: var(--primary);
+    }
+
+    .sheet-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .sheet-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sheet-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sheet-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .sheet-action {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+
+    .sheet-trigger:hover .sheet-action {
+      color: var(--primary);
+      transform: rotate(180deg);
+    }
+
+    .sheet-action svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .btn {
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      padding: 0 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 1px 2px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--surface-hover);
+      border-color: #cbd5e1;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ========== Stats Grid ========== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .stat-card.danger::before { background: var(--danger); }
+    .stat-card.warning::before { background: var(--warning); }
+    .stat-card.caution::before { background: var(--caution); }
+    .stat-card.success::before { background: var(--success); }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .stat-card.danger .stat-icon { background: var(--danger-light); }
+    .stat-card.warning .stat-icon { background: var(--warning-light); }
+    .stat-card.caution .stat-icon { background: var(--caution-light); }
+    .stat-card.success .stat-icon { background: var(--success-light); }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.025em;
+    }
+
+    .stat-card.danger .stat-value { color: var(--danger); }
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.caution .stat-value { color: var(--caution); }
+    .stat-card.success .stat-value { color: var(--success); }
+
+    .stat-card.active {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .stat-footer {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ========== Data Section ========== */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: '▾';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 12px;
+    }
+
+    .select {
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 32px 0 12px;
+      background: var(--surface);
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: all 0.2s;
+      min-width: 140px;
+    }
+
+    .select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .search {
+      position: relative;
+      min-width: 240px;
+    }
+
+    .search-input {
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 12px 0 36px;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      width: 100%;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* ========== Table ========== */
+    .table-wrapper {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    thead tr {
+      background: #f8fafc;
+    }
+
+    thead tr:first-child th {
+      background: #f1f5f9;
+      border-bottom: 2px solid var(--border);
+    }
+
+    thead tr:last-child th {
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      background: inherit;
+    }
+
+    th.num { text-align: right; }
+    th.center { text-align: center; }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-light);
+      white-space: nowrap;
+      background: var(--surface);
+      transition: background 0.15s;
+    }
+
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.center { text-align: center; }
+
+    tbody tr {
+      transition: all 0.15s;
+    }
+
+    tbody tr:hover td {
+      background: var(--surface-hover);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Zebra striping */
+    tbody tr:nth-child(even) td {
+      background: #fafbfc;
+    }
+
+    tbody tr:nth-child(even):hover td {
+      background: var(--surface-hover);
+    }
+
+    /* Alert level row coloring */
+    tbody tr[data-level="R"] td:first-child {
+      border-left: 3px solid var(--danger);
+    }
+
+    tbody tr[data-level="O"] td:first-child {
+      border-left: 3px solid var(--warning);
+    }
+
+    tbody tr[data-level="Y"] td:first-child {
+      border-left: 3px solid var(--caution);
+    }
+
+    tbody tr[data-level="G"] td:first-child {
+      border-left: 3px solid var(--success);
+    }
+
+    .editable {
+      background: var(--warning-light);
+      border: 1px dashed #fde68a;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: text;
+      min-width: 60px;
+      display: inline-block;
+      outline: none;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+
+    .editable:hover {
+      border-color: #fcd34d;
+    }
+
+    .editable:focus {
+      background: #fff;
+      border-color: var(--primary);
+      border-style: solid;
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    /* ========== Tags ========== */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .tag::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .tag-r {
+      color: #b91c1c;
+      background: var(--danger-light);
+    }
+    .tag-r::before { background: var(--danger); }
+
+    .tag-o {
+      color: #92400e;
+      background: var(--warning-light);
+    }
+    .tag-o::before { background: var(--warning); }
+
+    .tag-y {
+      color: #854d0e;
+      background: var(--caution-light);
+    }
+    .tag-y::before { background: var(--caution); }
+
+    .tag-g {
+      color: #065f46;
+      background: var(--success-light);
+    }
+    .tag-g::before { background: var(--success); }
+
+    /* ========== Empty State ========== */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      background: var(--bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .empty-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .empty-desc {
+      font-size: 14px;
+      max-width: 360px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ========== Spinner ========== */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ========== Utility ========== */
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .mt-3 { margin-top: 12px; }
+
+    .hint {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--bg);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hint-icon {
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    /* ========== Responsive ========== */
+    @media (max-width: 1200px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 16px; }
+      .header { padding: 20px; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .config { flex-direction: column; align-items: stretch; }
+      .sheet-trigger { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div>
+          <h1 class="title">
+            <span class="title-icon">📦</span>
+            黄盒补货看板
+          </h1>
+          <p class="subtitle">智能缺货预警 · 自动计算调拨量</p>
+        </div>
+        <div id="statusBadge" class="status-pill">
+          <span class="status-dot"></span>
+          <span>等待读取数据</span>
+        </div>
+      </div>
+      <div id="lastUpdated" class="last-updated" style="display: none;">
+        最后更新：<span id="updateTime"></span>
+      </div>
+    </header>
+
+    <!-- Config -->
+    <section class="config">
+      <input id="sheetUrl" type="hidden" />
+      <input id="sheetName" type="hidden" />
+
+      <!-- 连接模式切换 -->
+      <div class="mode-switch" id="modeSwitch" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;">
+        <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">数据源：</span>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+          <input type="radio" name="dataMode" value="backend" id="modeBackend" checked style="accent-color: var(--primary);" />
+          后端代理
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+          <input type="radio" name="dataMode" value="appsscript" id="modeAppsScript" style="accent-color: var(--primary);" />
+          Apps Script
+        </label>
+        <div id="appsScriptHint" style="margin-left: auto; font-size: 12px; color: var(--text-muted);">
+          内置脚本直连，无需配置
+        </div>
+      </div>
+      
+      <div class="sheet-trigger" id="sheetTrigger">
+        <div class="sheet-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 9h18M9 3v18" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 14l2-2 3 3 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="sheet-meta">
+          <div class="sheet-name" id="sheetNameDisplay">黄盒数据</div>
+          <div class="sheet-hint" id="sheetHint">点击刷新数据</div>
+        </div>
+        <div class="sheet-action">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <button id="btnExport" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        导出 CSV
+      </button>
+    </section>
+    <div id="statusMsg" style="height: 20px; margin-bottom: 8px;"></div>
+
+    <!-- Stats -->
+    <section class="stats-grid">
+      <article class="stat-card danger">
+        <div class="stat-header">
+          <span class="stat-label">紧急补货</span>
+          <span class="stat-icon">🚨</span>
+        </div>
+        <div class="stat-value" id="countR">0</div>
+        <div class="stat-footer">R 级别 SKU</div>
+      </article>
+      <article class="stat-card warning">
+        <div class="stat-header">
+          <span class="stat-label">预警</span>
+          <span class="stat-icon">⚠️</span>
+        </div>
+        <div class="stat-value" id="countO">0</div>
+        <div class="stat-footer">O 级别 SKU</div>
+      </article>
+      <article class="stat-card caution">
+        <div class="stat-header">
+          <span class="stat-label">关注</span>
+          <span class="stat-icon">👀</span>
+        </div>
+        <div class="stat-value" id="countY">0</div>
+        <div class="stat-footer">Y 级别 SKU</div>
+      </article>
+      <article class="stat-card success">
+        <div class="stat-header">
+          <span class="stat-label">正常</span>
+          <span class="stat-icon">✅</span>
+        </div>
+        <div class="stat-value" id="countG">0</div>
+        <div class="stat-footer">G 级别 SKU</div>
+      </article>
+    </section>
+
+    <!-- Data Table -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">补货明细</h2>
+        <div class="toolbar">
+          <div class="select-wrapper">
+            <select id="filterGrade" class="select">
+              <option value="">商品等级：全部</option>
+              <option value="0_P0">0_P0</option>
+              <option value="1_P1">1_P1</option>
+              <option value="2_新品">2_新品</option>
+              <option value="3_营销品">3_营销品</option>
+              <option value="4_清仓">4_清仓</option>
+              <option value="5_停用">5_停用</option>
+              <option value="6_维修配件">6_维修配件</option>
+              <option value="7_特价品">7_特价品</option>
+              <option value="8_开发中">8_开发中</option>
+              <option value="9_非商用品">9_非商用品</option>
+              <option value="10000_暂未销售">10000_暂未销售</option>
+            </select>
+          </div>
+          <div class="select-wrapper">
+            <select id="filterAlert" class="select">
+              <option value="">预警级别：全部</option>
+              <option value="R">R 紧急</option>
+              <option value="O">O 预警</option>
+              <option value="Y">Y 关注</option>
+              <option value="G">G 正常</option>
+            </select>
+          </div>
+          <div class="search">
+            <span class="search-icon">🔍</span>
+            <input id="searchInput" class="search-input" type="text" placeholder="搜索 SKU..." />
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <div class="table-scroll">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th colspan="2">分类</th>
+                <th>黄盒SKU</th>
+                <th colspan="7">主品参数</th>
+                <th colspan="5">黄盒参数</th>
+                <th colspan="4">计算结果</th>
+                <th colspan="2">人工调整</th>
+                <th>状态</th>
+              </tr>
+              <tr>
+                <th>国家</th>
+                <th>仓库名</th>
+                <th>黄盒SKU</th>
+                <th>主品SKU</th>
+                <th>等级</th>
+                <th class="num">主品在途</th>
+                <th class="num">主品仓库可用</th>
+                <th class="num">主品计划在途</th>
+                <th class="num">主品90天销量</th>
+                <th class="num">主品日均销</th>
+                <th class="num">黄盒在途</th>
+                <th class="num">海外仓可用</th>
+                <th class="num">计划在途</th>
+                <th class="num">国内仓可用</th>
+                <th class="num">黄盒90天销量</th>
+                <th class="num">预估发货失败</th>
+                <th class="num">预估需求量</th>
+                <th class="num">计算调拨</th>
+                <th class="num">优先级分</th>
+                <th class="num">调整后</th>
+                <th>调整原因</th>
+                <th>预警等级</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="hint">
+        <span class="hint-icon">💡</span>
+        <span>双击单元格可编辑 · 数据自动保存在本地 · 点击上方卡片可刷新数据</span>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ========== Utilities ==========
+    const $ = id => document.getElementById(id);
+
+    function extractId(input) {
+      const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      if (m) return m[1];
+      if (/^[a-zA-Z0-9_-]{20,}$/.test(input.trim())) return input.trim();
+      return null;
+    }
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let i = 0;
+      let inQuotes = false;
+      while (i < text.length) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (text[i + 1] === '"') { cell += '"'; i += 2; continue; }
+            inQuotes = false;
+            i++;
+          } else { cell += ch; i++; }
+        } else {
+          if (ch === '"') { inQuotes = true; i++; continue; }
+          if (ch === ',') { row.push(cell.trim()); cell = ''; i++; continue; }
+          if (ch === '\n' || ch === '\r') {
+            if (ch === '\r' && text[i + 1] === '\n') i++;
+            row.push(cell.trim());
+            if (row.some(c => c.length > 0 || row.length > 1)) rows.push(row);
+            row = []; cell = ''; i++; continue;
+          }
+          cell += ch;
+          i++;
+        }
+      }
+      if (cell || row.length > 0) {
+        row.push(cell.trim());
+        if (row.some(c => c.length > 0)) rows.push(row);
+      }
+      return rows;
+    }
+
+    function findCol(headers, keywords) {
+      const lower = headers.map(h => h.toLowerCase());
+      for (const kw of keywords) {
+        const idx = lower.findIndex(h => h.includes(kw.toLowerCase()));
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ========== State ==========
+    let rawData = [];
+    let headers = [];
+    let editedRows = {};
+
+    // ========== Load Sheet ==========
+    async function loadSheet() {
+      const urlInput = $('sheetUrl');
+      const sheetName = $('sheetName').value.trim() || '黄盒数据';
+      const btn = $('sheetTrigger');
+      const hint = $('sheetHint');
+      const status = $('statusMsg');
+
+      const id = extractId(urlInput.value);
+      if (!id) {
+        status.innerHTML = '<span style="color: var(--danger);">链接无效，请刷新页面重试</span>';
+        return;
+      }
+
+      btn.style.opacity = '0.7';
+      btn.style.pointerEvents = 'none';
+      hint.textContent = '读取中...';
+      status.innerHTML = '<span class="spinner"></span>正在读取 Google Sheets...';
+      updateStatus('loading', '读取中');
+
+      try {
+        let text;
+        const isAppsScript = $('modeAppsScript').checked;
+
+        if (isAppsScript) {
+          // 模式 2: 通过 Apps Script Web App（内置脚本）
+          const scriptUrl = 'https://script.google.com/macros/s/AKfycbxRJ8noh172IqoViEMxAVBDpmhIeGIcX_PDp79uNn5LUwn0vgxPHN1hgwvUFCQBF4IE/exec';
+          const sheetUrl = urlInput.value;
+          const apiUrl = `${scriptUrl}?action=getCSV&sheet_url=${encodeURIComponent(sheetUrl)}&sheet_name=${encodeURIComponent(sheetName)}`;
+          const res = await fetch(apiUrl);
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Apps Script 错误 (${res.status}): ${errText}`);
+          }
+          text = await res.text();
+          if (!text) throw new Error('返回数据为空');
+          if (text.startsWith('{')) {
+            const err = JSON.parse(text);
+            throw new Error(err.error || 'Apps Script 返回未知错误');
+          }
+        } else {
+          // 模式 1: 通过后端代理（绕过 CORS）
+          const apiUrl = `http://localhost:8002/api/sheets/fetch-csv?sheet_url=${encodeURIComponent(urlInput.value)}`;
+          const res = await fetch(apiUrl);
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`后端错误 (${res.status}): ${errText}`);
+          }
+          text = await res.text();
+          if (!text) throw new Error('返回数据为空');
+        }
+
+        // 解析 CSV
+        const rows = parseCSV(text);
+
+        let startIdx = 0;
+        if (sheetName) {
+          for (let i = 0; i < Math.min(rows.length, 5); i++) {
+            if (rows[i][0] && rows[i][0].includes(sheetName)) {
+              startIdx = i;
+              break;
+            }
+          }
+        }
+
+        headers = rows[startIdx];
+        const dataRows = rows.slice(startIdx + 1).filter(r => r.some(c => c.trim()));
+        rawData = dataRows.map(r => {
+          const obj = {};
+          headers.forEach((h, idx) => obj[h] = r[idx] !== undefined ? r[idx] : '');
+          return obj;
+        });
+
+        status.innerHTML = `<span style="color: var(--success);">✓ 读取成功，共 ${rawData.length} 行数据</span>`;
+        updateStatus('ok', `已连接 · ${rawData.length} 条`);
+        showLastUpdated();
+        render();
+
+      } catch (e) {
+        const isAppsScript = $('modeAppsScript').checked;
+        const hint = isAppsScript
+          ? `${e.message}（请确认表格设为「任何人可查看」且 Apps Script 已正确部署）`
+          : `${e.message}（请确保后端服务已启动，端口 8002）`;
+        status.innerHTML = `<span style="color: var(--danger);">读取失败：${hint}</span>`;
+        updateStatus('error', '连接失败');
+        hint.textContent = '读取失败，点击重试';
+      } finally {
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = '';
+        hint.textContent = '点击刷新数据';
+      }
+    }
+
+    function updateStatus(state, text) {
+      const badge = $('statusBadge');
+      const dot = badge.querySelector('.status-dot');
+      const span = badge.querySelector('span:last-child');
+      dot.className = 'status-dot ' + state;
+      span.textContent = text;
+    }
+
+    function showLastUpdated() {
+      const el = $('lastUpdated');
+      el.style.display = 'block';
+      $('updateTime').textContent = new Date().toLocaleString('zh-CN');
+    }
+
+    // ========== Process & Render ==========
+    function findCol(headers, candidates) {
+      for (const c of candidates) {
+        const idx = headers.findIndex(h => h.toLowerCase().includes(c.toLowerCase()));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+
+    function toNum(v) {
+      if (v === null || v === undefined || v === '') return 0;
+      const n = parseFloat(String(v).replace(/,/g, ''));
+      return isNaN(n) ? 0 : n;
+    }
+
+    function round(v) { return Math.round(v); }
+
+    function calcAlertLevel(calcTransfer, boxDomestic, mainDaily, boxOverseas) {
+      if (calcTransfer > 0) {
+        return boxDomestic < calcTransfer ? 'R' : 'O';
+      } else {
+        return boxOverseas < mainDaily * 30 ? 'Y' : 'G';
+      }
+    }
+
+    function calcPriority(level, grade, calcTransfer) {
+      const alertScore = { R: 400, O: 300, Y: 200, G: 100 }[level] || 100;
+      const gradeScore = { '0_P0': 30, '1_P1': 20, '2_新品': 10 }[grade] || 0;
+      const transferBonus = Math.min(Math.max(calcTransfer, 0), 99);
+      return alertScore + gradeScore * 10 + transferBonus;
+    }
+
+    function gradeTag(grade) {
+      const map = { '0_P0': 'red', '1_P1': 'orange', '2_新品': 'green', '3_营销品': 'cyan', '4_清仓': 'lime', '5_停用': 'default', '6_维修配件': 'geekblue', '7_特价品': 'gold', '8_开发中': 'purple', '9_非商用品': 'volcano' };
+      const color = map[grade] || 'default';
+      const tagColors = { red: '#dc2626', orange: '#ea580c', green: '#16a34a', cyan: '#0891b2', lime: '#65a30d', default: '#94a3b8', geekblue: '#6366f1', gold: '#ca8a04', purple: '#9333ea', volcano: '#c2410c' };
+      return `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;background:${tagColors[color]}22;color:${tagColors[color]||'#94a3b8'};border:1px solid ${tagColors[color] || '#94a3b8'}44;">${grade || ''}</span>`;
+    }
+
+    function processRow(row) {
+      const colMainSku     = findCol(headers, ['主品SKU', 'main_sku', 'main sku']);
+      const colBoxSku      = findCol(headers, ['黄盒SKU', 'box_sku', 'box sku']);
+      const colCountry     = findCol(headers, ['国家', 'country']);
+      const colWarehouse   = findCol(headers, ['仓库名', '仓库', 'warehouse', '仓库名称']);
+      const colGrade       = findCol(headers, ['主品商品等级', '商品等级', 'grade', 'level']);
+      const colMainTransit = findCol(headers, ['主品在途', '主品转运中', 'main_in_transit']);
+      const colMainAvail   = findCol(headers, ['主品仓库可用', '主品可用', 'main_available']);
+      const colMainPlan    = findCol(headers, ['主品计划在途', '主品计划转运', 'main_planned_in_transit']);
+      const colMainSales   = findCol(headers, ['主品90天销量', '主品销量', 'main_sales_90d', 'main_sales']);
+      const colMainDaily   = findCol(headers, ['主品90天日均销', '主品日均销', '日均销', 'main_daily_avg_90d', 'daily_avg']);
+      const colBoxTransit  = findCol(headers, ['黄盒在途', 'box_in_transit', 'box transit']);
+      const colOvAvail    = findCol(headers, ['海外仓可用', '黄盒海外仓可用', 'overseas', 'box_overseas_available']);
+      const colPlanTransit = findCol(headers, ['计划在途', '黄盒计划在途', 'box_planned_in_transit']);
+      const colDomAvail   = findCol(headers, ['国内仓可用', '黄盒国内仓可用', 'box_domestic_available', 'domestic']);
+      const colBoxSales   = findCol(headers, ['黄盒90天销量', '黄盒销量', 'box_sales_90d', 'box_sales']);
+
+      const mainTransit   = colMainTransit >= 0 ? toNum(row[headers[colMainTransit]]) : 0;
+      const mainAvail     = colMainAvail   >= 0 ? toNum(row[headers[colMainAvail]])   : 0;
+      const mainPlan      = colMainPlan    >= 0 ? toNum(row[headers[colMainPlan]])    : 0;
+      const mainSales90d  = colMainSales    >= 0 ? toNum(row[headers[colMainSales]])   : 0;
+      const mainDaily     = colMainDaily    >= 0 ? toNum(row[headers[colMainDaily]])   : 0;
+      const boxTransit    = colBoxTransit   >= 0 ? toNum(row[headers[colBoxTransit]])  : 0;
+      const overseas      = colOvAvail      >= 0 ? toNum(row[headers[colOvAvail]])     : 0;
+      const planTransit   = colPlanTransit  >= 0 ? toNum(row[headers[colPlanTransit]]): 0;
+      const domestic      = colDomAvail     >= 0 ? toNum(row[headers[colDomAvail]])   : 0;
+      const boxSales90d   = colBoxSales     >= 0 ? toNum(row[headers[colBoxSales]])   : 0;
+
+      const estimatedFailure = mainDaily * 0.02 * 90;
+      const estimatedDemand  = estimatedFailure * 0.20;
+      const calcTransfer     = estimatedDemand - overseas - boxTransit;
+      const level            = calcAlertLevel(calcTransfer, domestic, mainDaily, overseas);
+      const grade            = colGrade >= 0 ? (row[headers[colGrade]] || '').trim() : '';
+      const priority         = calcPriority(level, grade, calcTransfer);
+
+      return {
+        country:     colCountry   >= 0 ? (row[headers[colCountry]]   || '').trim()   : '',
+        warehouse:   colWarehouse >= 0 ? (row[headers[colWarehouse]] || '').trim()   : '',
+        mainSku:     colMainSku   >= 0 ? (row[headers[colMainSku]]   || '').trim()   : '',
+        boxSku:      colBoxSku    >= 0 ? (row[headers[colBoxSku]]    || '').trim()   : '',
+        grade,
+        mainTransit, mainAvail, mainPlan, mainSales90d, mainDaily,
+        boxTransit, overseas, planTransit, domestic, boxSales90d,
+        estimatedFailure, estimatedDemand, calcTransfer, level, priority,
+      };
+    }
+
+    function getProcessed() {
+      return rawData.map((row, idx) => {
+        const p = processRow(row);
+        const saved = editedRows[idx] || {};
+        return {
+          ...p,
+          adjusted: saved.adjusted !== undefined ? saved.adjusted : Math.max(0, Math.round(p.calcTransfer)),
+          reason: saved.reason || '',
+          idx,
+        };
+      });
+    }
+
+    function render() {
+      const processed = getProcessed();
+      const gradeFilter = $('filterGrade').value;
+      const alertFilter = $('filterAlert').value;
+      const search = $('searchInput').value.trim().toLowerCase();
+
+      const filtered = processed.filter(p => {
+        if (gradeFilter && p.grade !== gradeFilter) return false;
+        if (alertFilter && p.level !== alertFilter) return false;
+        if (search) {
+          const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      });
+
+      // Stats
+      const counts = { R: 0, O: 0, Y: 0, G: 0 };
+      processed.forEach(p => counts[p.level]++);
+      $('countR').textContent = counts.R;
+      $('countO').textContent = counts.O;
+      $('countY').textContent = counts.Y;
+      $('countG').textContent = counts.G;
+
+      // Table
+      const tbody = $('tableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="22">
+              <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <div class="empty-title">暂无数据</div>
+                <div class="empty-desc">点击上方卡片读取 Google Sheets 数据</div>
+              </div>
+            </td>
+          </tr>`;
+        return;
+      }
+
+      filtered.forEach(p => {
+        const tagColors = { R: '#dc2626', O: '#ea580c', Y: '#ca8a04', G: '#16a34a' };
+        const color = tagColors[p.level] || '#94a3b8';
+        const levelLabel = { R: '紧急', O: '预警', Y: '关注', G: '正常' }[p.level] || p.level;
+        const tr = document.createElement('tr');
+        tr.dataset.level = p.level;
+        tr.innerHTML = `
+          <td>${escapeHtml(p.country)}</td>
+          <td>${escapeHtml(p.warehouse)}</td>
+          <td>${escapeHtml(p.boxSku)}</td>
+          <td>${escapeHtml(p.mainSku)}</td>
+          <td>${gradeTag(p.grade)}</td>
+          <td class="num">${round(p.mainTransit)}</td>
+          <td class="num">${round(p.mainAvail)}</td>
+          <td class="num">${round(p.mainPlan)}</td>
+          <td class="num">${round(p.mainSales90d)}</td>
+          <td class="num">${round(p.mainDaily)}</td>
+          <td class="num">${round(p.boxTransit)}</td>
+          <td class="num">${round(p.overseas)}</td>
+          <td class="num">${round(p.planTransit)}</td>
+          <td class="num">${round(p.domestic)}</td>
+          <td class="num">${round(p.boxSales90d)}</td>
+          <td class="num">${round(p.estimatedFailure)}</td>
+          <td class="num">${round(p.estimatedDemand)}</td>
+          <td class="num" style="font-weight:600;color:${p.calcTransfer < 0 ? '#16a34a' : '#ea580c'}">${round(p.calcTransfer)}</td>
+          <td class="num" style="color:#94a3b8">${round(p.priority)}</td>
+          <td class="num"><span class="editable" data-idx="${p.idx}" data-field="adjusted" contenteditable="true">${p.adjusted}</span></td>
+          <td><span class="editable" data-idx="${p.idx}" data-field="reason" contenteditable="true">${escapeHtml(p.reason) || ''}</span></td>
+          <td class="center"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function levelText(l) {
+      return { R: '紧急', O: '预警', Y: '关注', G: '正常' }[l] || l;
+    }
+
+    // ========== Events ==========
+    $('sheetTrigger').addEventListener('click', loadSheet);
+
+    // 预警卡片点击 → 筛选对应等级（再次点击取消）
+    function bindStatCardClick(cardId, level) {
+      $(cardId).addEventListener('click', () => {
+        const sel = $('filterAlert');
+        const current = sel.value;
+        sel.value = current === level ? '' : level;
+        // 高亮/取消高亮卡片
+        ['countR','countO','countY','countG'].forEach(id => $(id).parentElement.classList.remove('active'));
+        if (sel.value) $(cardId).parentElement.classList.add('active');
+        render();
+      });
+    }
+    bindStatCardClick('countR', 'R');
+    bindStatCardClick('countO', 'O');
+    bindStatCardClick('countY', 'Y');
+    bindStatCardClick('countG', 'G');
+
+    // 同步卡片高亮
+    function syncCardHighlight() {
+      const activeLevel = $('filterAlert').value;
+      [['countR','R'],['countO','O'],['countY','Y'],['countG','G']].forEach(([id, lvl]) => {
+        $(id).parentElement.classList.toggle('active', activeLevel === lvl);
+      });
+    }
+
+    $('filterGrade').addEventListener('change', () => { render(); syncCardHighlight(); });
+    $('filterAlert').addEventListener('change', () => {
+      try { localStorage.setItem('yellowbox_alert', $('filterAlert').value); } catch {}
+      render(); syncCardHighlight();
+    });
+    $('searchInput').addEventListener('input', () => { render(); syncCardHighlight(); });
+
+    $('tableBody').addEventListener('focusout', (e) => {
+      const el = e.target;
+      if (!el.classList.contains('editable')) return;
+      const idx = parseInt(el.dataset.idx, 10);
+      const field = el.dataset.field;
+      let value = el.textContent.trim();
+      if (field === 'adjusted') {
+        value = parseFloat(value);
+        if (isNaN(value)) value = 0;
+      }
+      if (!editedRows[idx]) editedRows[idx] = {};
+      editedRows[idx][field] = value;
+      try { localStorage.setItem('yellowbox_edits', JSON.stringify(editedRows)); } catch {}
+    });
+
+    $('btnExport').addEventListener('click', () => {
+      const processed = getProcessed();
+      const gradeFilter = $('filterGrade').value;
+      const alertFilter = $('filterAlert').value;
+      const search = $('searchInput').value.trim().toLowerCase();
+
+      const filtered = processed.filter(p => {
+        if (gradeFilter && p.grade !== gradeFilter) return false;
+        if (alertFilter && p.level !== alertFilter) return false;
+        if (search) {
+          const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      });
+
+      const header = ['国家','仓库名','黄盒SKU','主品SKU','等级','主品在途','主品仓库可用','主品计划在途','主品90天销量','主品日均销','黄盒在途','海外仓可用','计划在途','国内仓可用','黄盒90天销量','预估发货失败','预估需求量','计算调拨','优先级分','调整后','调整原因','预警等级'];
+      const rows = [header];
+      filtered.forEach(p => {
+        rows.push([p.country,p.warehouse,p.boxSku,p.mainSku,p.grade,round(p.mainTransit),round(p.mainAvail),round(p.mainPlan),round(p.mainSales90d),round(p.mainDaily),round(p.boxTransit),round(p.overseas),round(p.planTransit),round(p.domestic),round(p.boxSales90d),round(p.estimatedFailure),round(p.estimatedDemand),round(p.calcTransfer),round(p.priority),p.adjusted,p.reason,p.level]);
+      });
+
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `黄盒补货_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ========== Init ==========
+    try {
+      const savedUrl = localStorage.getItem('yellowbox_url');
+      const savedName = localStorage.getItem('yellowbox_name');
+      const savedEdits = localStorage.getItem('yellowbox_edits');
+      
+      const defaultUrl = 'https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing';
+      const defaultName = '黄盒数据';
+      
+      if (!savedUrl) {
+        $('sheetUrl').value = defaultUrl;
+        localStorage.setItem('yellowbox_url', defaultUrl);
+      } else {
+        $('sheetUrl').value = savedUrl;
+      }
+      
+      if (!savedName) {
+        $('sheetName').value = defaultName;
+        localStorage.setItem('yellowbox_name', defaultName);
+      } else {
+        $('sheetName').value = savedName;
+      }
+      
+      $('sheetNameDisplay').textContent = $('sheetName').value || defaultName;
+      
+      if (savedEdits) editedRows = JSON.parse(savedEdits);
+
+      // 恢复数据源模式
+      const savedMode = localStorage.getItem('yellowbox_dataMode');
+      if (savedMode === 'appsscript') {
+        $('modeAppsScript').checked = true;
+      }
+
+      // 恢复预警卡片高亮
+      const savedAlert = localStorage.getItem('yellowbox_alert');
+      if (savedAlert) $('filterAlert').value = savedAlert;
+      syncCardHighlight();
+
+      // 模式切换
+      function onModeChange() {
+        const isApps = $('modeAppsScript').checked;
+        $('appsScriptHint').style.display = isApps ? 'none' : 'block';
+        try { localStorage.setItem('yellowbox_dataMode', isApps ? 'appsscript' : 'backend'); } catch {}
+      }
+      $('modeBackend').addEventListener('change', onModeChange);
+      $('modeAppsScript').addEventListener('change', onModeChange);
+
+      $('sheetUrl').addEventListener('input', () => {
+        try { localStorage.setItem('yellowbox_url', $('sheetUrl').value); } catch {}
+      });
+      $('sheetName').addEventListener('input', () => {
+        const val = $('sheetName').value;
+        $('sheetNameDisplay').textContent = val || defaultName;
+        try { localStorage.setItem('yellowbox_name', val); } catch {}
+      });
+
+      loadSheet();
+    } catch {}
+
+    $('sheetUrl').addEventListener('keydown', e => { if (e.key === 'Enter') loadSheet(); });
+    $('sheetName').addEventListener('keydown', e => { if (e.key === 'Enter') loadSheet(); });
+  </script>
+</body>
+</html>

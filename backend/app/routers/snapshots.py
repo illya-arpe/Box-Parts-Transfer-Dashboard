@@ -162,23 +162,32 @@ def _merge_sheets_data(
     """
     merged = box_df.copy()
 
-    # 创建主品SKU列（从黄盒SKU反推）
-    merged["主品SKU"] = merged["黄盒SKU"].apply(box_sku_to_main_sku)
+    # 先对三个 Sheet 分别按唯一键去重，避免后续 merge 产生笛卡尔积
+    # 黄盒数据以"黄盒SKU"为唯一键
+    if "黄盒SKU" in merged.columns:
+        merged = merged.drop_duplicates(subset="黄盒SKU", keep="first")
 
-    # 通过主品SKU匹配主品数据Sheet
+    # 主品数据以"主品SKU"为唯一键
     if main_df is not None and not main_df.empty:
         main_cols_to_merge = [col for col in main_df.columns if col != "主品SKU" and col not in merged.columns]
         if main_cols_to_merge:
-            merged = merged.merge(main_df[["主品SKU"] + main_cols_to_merge], on="主品SKU", how="left")
+            main_deduped = main_df[["主品SKU"] + main_cols_to_merge].drop_duplicates(subset="主品SKU", keep="first")
+            merged = merged.merge(main_deduped, on="主品SKU", how="left")
 
-    # Merge domestic sheet
+    # 国内仓数据以"黄盒SKU"为唯一键
     if domestic_df is not None and not domestic_df.empty:
         if "黄盒国内仓可用量" not in merged.columns and "黄盒国内仓可用量" in domestic_df.columns:
             domestic_cols = ["黄盒SKU", "黄盒国内仓可用量"]
             available_cols = [col for col in domestic_cols if col in domestic_df.columns]
             if available_cols:
-                merged = merged.merge(domestic_df[available_cols], on="黄盒SKU", how="left")
+                domestic_deduped = domestic_df[available_cols].drop_duplicates(subset="黄盒SKU", keep="first")
+                merged = merged.merge(domestic_deduped, on="黄盒SKU", how="left")
 
+    # 再次对整个合并结果去重（按黄盒SKU），确保万无一失
+    if "黄盒SKU" in merged.columns:
+        merged = merged.drop_duplicates(subset="黄盒SKU", keep="first")
+
+    print(f"[DEDUP] After merge dedup: {len(merged)} rows")
     return merged
 
 
@@ -194,6 +203,11 @@ def _process_dataframe(df: pd.DataFrame, warehouse: Warehouse, snapshot: Snapsho
 
     # 打印列名以便调试
     print(f"[IMPORT] DataFrame columns: {list(df.columns)}")
+
+    # 兜底去重：按黄盒SKU去重，避免同一SKU重复写入数据库
+    if "黄盒SKU" in df.columns:
+        df = df.drop_duplicates(subset="黄盒SKU", keep="first").copy()
+        print(f"[IMPORT] After dedup by 黄盒SKU: {len(df)} rows")
 
     for _, row in df.iterrows():
         main_sku_val = get_column_value(row, "主品SKU")
@@ -331,6 +345,24 @@ async def create_snapshot_from_sheet(
                 "hint": f"仅支持：{', '.join(FIXED_WAREHOUSE_NAMES)}",
             }
         )
+
+    # 只保留当前选中仓库的数据
+    warehouse_col = get_column_value(merged_df, "仓库名")
+    if warehouse_col is not None:
+        mask = warehouse_col.astype(str).str.strip() == warehouse_name
+        filtered_df = merged_df[mask].copy()
+        print(f"[IMPORT] Warehouse filter: {warehouse_name}, kept {len(filtered_df)}/{len(merged_df)} rows")
+        if filtered_df.empty:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": f"表格中「仓库名」列未找到「{warehouse_name}」的数据，请检查仓库名称是否与表格一致",
+                    "found_values": merged_df[warehouse_col.name].astype(str).unique().tolist() if hasattr(warehouse_col, 'name') else [],
+                }
+            )
+        merged_df = filtered_df
+    else:
+        print(f"[IMPORT] Warning: 未找到「仓库名」列，将导入全部数据")
 
     with SessionLocal() as session:
         warehouse = session.scalar(

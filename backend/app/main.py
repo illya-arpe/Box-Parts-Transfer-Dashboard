@@ -9,6 +9,7 @@ from app.models import ReplenishmentRow, Sku, Snapshot, Warehouse  # noqa: F401
 from app.routers.health import router as health_router
 from app.routers.snapshots import router as snapshots_router
 from app.routers.skus import router as skus_router
+from app.routers.sheets_proxy import router as sheets_proxy_router
 
 app = FastAPI(title="Yellow Box Replenishment API", version="0.1.0")
 
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(snapshots_router)
 app.include_router(skus_router)
+app.include_router(sheets_proxy_router)
 
 
 @app.on_event("startup")

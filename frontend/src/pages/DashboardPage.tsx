@@ -604,7 +604,7 @@ export default function DashboardPage() {
             onChange={(key) => setActiveWarehouseName(key)}
             items={warehouses.map((name) => ({
               key: name,
-              label: name,
+              label: "",
             }))}
           />
           <Space size={12} wrap style={{ marginBottom: 12 }}>
