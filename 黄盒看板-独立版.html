@@ -522,24 +522,24 @@
 
     .table-scroll {
       overflow-x: auto;
-      max-height: 600px;
       overflow-y: auto;
+      max-height: 600px;
     }
 
+    .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .table-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+    .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
     table {
-      width: 100%;
       border-collapse: collapse;
       font-size: 13px;
+      width: 100%;
     }
 
     thead {
       position: sticky;
       top: 0;
       z-index: 10;
-    }
-
-    thead tr {
-      background: #f8fafc;
     }
 
     thead tr:first-child th {
@@ -560,11 +560,33 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       white-space: nowrap;
-      background: inherit;
+      background: #f1f5f9;
     }
 
     th.num { text-align: right; }
     th.center { text-align: center; }
+
+    /* Sticky frozen columns (left) */
+    .frozen-0 {
+      position: sticky;
+      left: 0;
+      z-index: 9;
+    }
+    .frozen-1 {
+      position: sticky;
+      left: 0;
+      z-index: 8;
+    }
+    .frozen-2 {
+      position: sticky;
+      left: 0;
+      z-index: 7;
+    }
+    .frozen-3 {
+      position: sticky;
+      left: 0;
+      z-index: 6;
+    }
 
     td {
       padding: 12px 14px;
@@ -577,42 +599,31 @@
     td.num { text-align: right; font-variant-numeric: tabular-nums; }
     td.center { text-align: center; }
 
-    tbody tr {
-      transition: all 0.15s;
+    tbody tr { transition: all 0.15s; }
+    tbody tr:hover td { background: var(--surface-hover); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:nth-child(even) td { background: #fafbfc; }
+    tbody tr:nth-child(even):hover td { background: var(--surface-hover); }
+    tbody tr:nth-child(even) td.frozen-0,
+    tbody tr:nth-child(even) td.frozen-1,
+    tbody tr:nth-child(even) td.frozen-2,
+    tbody tr:nth-child(even) td.frozen-3 { background: #fafbfc; }
+
+    tbody tr[data-level="R"] td:first-child { border-left: 3px solid var(--danger); }
+    tbody tr[data-level="O"] td:first-child { border-left: 3px solid var(--warning); }
+    tbody tr[data-level="Y"] td:first-child { border-left: 3px solid var(--caution); }
+    tbody tr[data-level="G"] td:first-child { border-left: 3px solid var(--success); }
+
+    /* ── Footer ── */
+    .table-footer {
+      background: #f8fafc;
+      border-top: 2px solid var(--border);
     }
 
-    tbody tr:hover td {
-      background: var(--surface-hover);
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    /* Zebra striping */
-    tbody tr:nth-child(even) td {
-      background: #fafbfc;
-    }
-
-    tbody tr:nth-child(even):hover td {
-      background: var(--surface-hover);
-    }
-
-    /* Alert level row coloring */
-    tbody tr[data-level="R"] td:first-child {
-      border-left: 3px solid var(--danger);
-    }
-
-    tbody tr[data-level="O"] td:first-child {
-      border-left: 3px solid var(--warning);
-    }
-
-    tbody tr[data-level="Y"] td:first-child {
-      border-left: 3px solid var(--caution);
-    }
-
-    tbody tr[data-level="G"] td:first-child {
-      border-left: 3px solid var(--success);
+    .table-footer td {
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
     }
 
     .editable {
@@ -753,6 +764,80 @@
     .hint-icon {
       flex-shrink: 0;
       font-size: 14px;
+    }
+
+    /* ========== Pagination ========== */
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pagination-info {
+      color: var(--text-muted);
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pagination-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      line-height: 1.5;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .pagination-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .pagination-size-select {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--surface);
+      cursor: pointer;
+      outline: none;
+    }
+
+    .pagination-size-select:focus {
+      border-color: var(--primary);
+    }
+
+    .page-gap {
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 0 2px;
     }
 
     /* ========== Responsive ========== */
@@ -914,22 +999,24 @@
       </div>
 
       <div class="table-wrapper">
-        <div class="table-scroll">
+        <div class="table-scroll" id="tableScroll">
           <table id="dataTable">
+            <colgroup id="dataColgroup"></colgroup>
             <thead>
               <tr>
-                <th colspan="2">分类</th>
-                <th>黄盒SKU</th>
+                <th colspan="1" class="frozen-0">预警</th>
+                <th colspan="2" class="frozen-1">分类</th>
+                <th class="frozen-2">黄盒SKU</th>
                 <th colspan="7">主品参数</th>
                 <th colspan="5">黄盒参数</th>
                 <th colspan="4">计算结果</th>
                 <th colspan="2">人工调整</th>
-                <th>状态</th>
               </tr>
               <tr>
-                <th>国家</th>
-                <th>仓库名</th>
-                <th>黄盒SKU</th>
+                <th class="center frozen-0">预警等级</th>
+                <th class="frozen-1">国家</th>
+                <th class="frozen-2">仓库名</th>
+                <th class="frozen-3">黄盒SKU</th>
                 <th>主品SKU</th>
                 <th>等级</th>
                 <th class="num">主品在途</th>
@@ -948,11 +1035,34 @@
                 <th class="num">优先级分</th>
                 <th class="num">调整后</th>
                 <th>调整原因</th>
-                <th>预警等级</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
           </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="table-footer">
+          <table>
+            <tbody id="tableFooter"></tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-bar">
+          <span class="pagination-info" id="paginationInfo"></span>
+          <div class="pagination-controls">
+            <button class="pagination-btn" id="pagePrev" onclick="prevPage()">‹ 上一页</button>
+            <span id="pageNumbers"></span>
+            <button class="pagination-btn" id="pageNext" onclick="nextPage()">下一页 ›</button>
+            <span class="page-gap">|</span>
+            <select class="pagination-size-select" id="pageSizeSelect" onchange="changePageSize(this.value)">
+              <option value="50">50/页</option>
+              <option value="100">100/页</option>
+              <option value="300">300/页</option>
+              <option value="500">500/页</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1025,6 +1135,9 @@
     let rawData = [];
     let headers = [];
     let editedRows = {};
+    let loadingRows = false;
+    let currentPage = 1;
+    let pageSize = 50;
 
     // ========== Load Sheet ==========
     async function loadSheet() {
@@ -1232,6 +1345,7 @@
       });
     }
 
+    // ========== Render table (single table, sticky frozen columns) ==========
     function render() {
       const processed = getProcessed();
       const gradeFilter = $('filterGrade').value;
@@ -1248,6 +1362,9 @@
         return true;
       });
 
+      const totalPages = getTotalPages(filtered.length);
+      if (currentPage > totalPages) currentPage = totalPages;
+
       // Stats
       const counts = { R: 0, O: 0, Y: 0, G: 0 };
       processed.forEach(p => counts[p.level]++);
@@ -1256,14 +1373,13 @@
       $('countY').textContent = counts.Y;
       $('countG').textContent = counts.G;
 
-      // Table
       const tbody = $('tableBody');
       tbody.innerHTML = '';
 
       if (filtered.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="22">
+            <td colspan="21">
               <div class="empty-state">
                 <div class="empty-icon">📭</div>
                 <div class="empty-title">暂无数据</div>
@@ -1271,19 +1387,24 @@
               </div>
             </td>
           </tr>`;
+        renderTableFooter([]);
+        renderPaginationBar(0);
         return;
       }
 
-      filtered.forEach(p => {
+      const pageData = getPageData(filtered);
+
+      pageData.forEach(p => {
         const tagColors = { R: '#dc2626', O: '#ea580c', Y: '#ca8a04', G: '#16a34a' };
         const color = tagColors[p.level] || '#94a3b8';
         const levelLabel = { R: '紧急', O: '预警', Y: '关注', G: '正常' }[p.level] || p.level;
         const tr = document.createElement('tr');
         tr.dataset.level = p.level;
         tr.innerHTML = `
-          <td>${escapeHtml(p.country)}</td>
-          <td>${escapeHtml(p.warehouse)}</td>
-          <td>${escapeHtml(p.boxSku)}</td>
+          <td class="center frozen-0"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
+          <td class="frozen-1">${escapeHtml(p.country)}</td>
+          <td class="frozen-2">${escapeHtml(p.warehouse)}</td>
+          <td class="frozen-3">${escapeHtml(p.boxSku)}</td>
           <td>${escapeHtml(p.mainSku)}</td>
           <td>${gradeTag(p.grade)}</td>
           <td class="num">${round(p.mainTransit)}</td>
@@ -1301,15 +1422,142 @@
           <td class="num" style="font-weight:600;color:${p.calcTransfer < 0 ? '#16a34a' : '#ea580c'}">${round(p.calcTransfer)}</td>
           <td class="num" style="color:#94a3b8">${round(p.priority)}</td>
           <td class="num"><span class="editable" data-idx="${p.idx}" data-field="adjusted" contenteditable="true">${p.adjusted}</span></td>
-          <td><span class="editable" data-idx="${p.idx}" data-field="reason" contenteditable="true">${escapeHtml(p.reason) || ''}</span></td>
-          <td class="center"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
-        `;
+          <td><span class="editable" data-idx="${p.idx}" data-field="reason" contenteditable="true">${escapeHtml(p.reason) || ''}</span></td>`;
         tbody.appendChild(tr);
       });
+
+      renderTableFooter(pageData);
+      renderPaginationBar(filtered.length);
+    }
+
+    // ========== Pagination ==========
+    function getTotalPages(total) {
+      return Math.max(1, Math.ceil(total / pageSize));
+    }
+
+    function getPageData(filtered) {
+      const start = (currentPage - 1) * pageSize;
+      return filtered.slice(start, start + pageSize);
+    }
+
+    function goToPage(page) {
+      const total = getCurrentFiltered().length;
+      const totalPages = getTotalPages(total);
+      currentPage = Math.max(1, Math.min(page, totalPages));
+      render();
+    }
+
+    function prevPage() {
+      goToPage(currentPage - 1);
+    }
+
+    function nextPage() {
+      goToPage(currentPage + 1);
+    }
+
+    function changePageSize(size) {
+      pageSize = parseInt(size);
+      currentPage = 1;
+      render();
+    }
+
+    function getCurrentFiltered() {
+      const processed = getProcessed();
+      const gradeFilter = $('filterGrade').value;
+      const alertFilter = $('filterAlert').value;
+      const search = $('searchInput').value.trim().toLowerCase();
+      return processed.filter(p => {
+        if (gradeFilter && p.grade !== gradeFilter) return false;
+        if (alertFilter && p.level !== alertFilter) return false;
+        if (search) {
+          const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderPaginationBar(total) {
+      const totalPages = getTotalPages(total);
+      const start = (currentPage - 1) * pageSize + 1;
+      const end = Math.min(currentPage * pageSize, total);
+      $('paginationInfo').textContent = total > 0
+        ? `显示 ${start}-${end} 条，共 ${total} 条`
+        : `共 ${total} 条`;
+
+      $('pagePrev').disabled = currentPage <= 1;
+      $('pageNext').disabled = currentPage >= totalPages;
+
+      const nums = $('pageNumbers');
+      nums.innerHTML = '';
+      const maxVisible = 5;
+      let pages = [];
+      if (totalPages <= maxVisible + 2) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+      }
+      pages.forEach(p => {
+        if (p === '...') {
+          const span = document.createElement('span');
+          span.className = 'page-gap';
+          span.textContent = '...';
+          nums.appendChild(span);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'pagination-btn' + (p === currentPage ? ' active' : '');
+          btn.textContent = p;
+          btn.onclick = () => goToPage(p);
+          nums.appendChild(btn);
+        }
+      });
+
+      $('pageSizeSelect').value = pageSize;
     }
 
     function levelText(l) {
       return { R: '紧急', O: '预警', Y: '关注', G: '正常' }[l] || l;
+    }
+
+    // ========== Sync footer widths from thead widths ==========
+    function syncFooterWidths() {
+      const theadThs = Array.from($('dataTable').querySelectorAll('thead tr:last-child th'));
+      const tfootTds = Array.from($('tableFooter').querySelectorAll('td'));
+      theadThs.forEach((th, i) => {
+        if (tfootTds[i]) tfootTds[i].style.width = th.offsetWidth + 'px';
+      });
+    }
+
+    function renderTableFooter(pageData) {
+      const tfoot = $('tableFooter');
+      if (!tfoot) return;
+      tfoot.innerHTML = '';
+
+      const counts = { R: 0, O: 0, Y: 0, G: 0 };
+      pageData.forEach(p => counts[p.level]++);
+      const sumCalc = pageData.reduce((s, p) => s + p.calcTransfer, 0);
+      const sumAdjusted = pageData.reduce((s, p) => s + (p.adjusted || 0), 0);
+      const levelLabels = { R: '🔴 紧急', O: '🟠 预警', Y: '🟡 关注', G: '🟢 正常' };
+      const labels = Object.entries(counts).map(([k, v]) => levelLabels[k] + ' ' + v).join('　');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="center frozen-0" style="font-size:11px;color:var(--text-muted)">${labels}</td>
+        <td class="frozen-1"></td>
+        <td class="frozen-2"></td>
+        <td class="frozen-3"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td>
+        <td class="num" style="font-weight:600;color:${sumCalc >= 0 ? '#ea580c' : '#16a34a'}">${round(sumCalc)}</td>
+        <td></td>
+        <td class="num" style="font-weight:600">${round(sumAdjusted)}</td>
+        <td></td>`;
+      tfoot.appendChild(tr);
+      setTimeout(syncFooterWidths, 0);
     }
 
     // ========== Events ==========
@@ -1361,8 +1609,6 @@
       editedRows[idx][field] = value;
       try { localStorage.setItem('yellowbox_edits', JSON.stringify(editedRows)); } catch {}
     });
-
-    $('btnExport').addEventListener('click', () => {
       const processed = getProcessed();
       const gradeFilter = $('filterGrade').value;
       const alertFilter = $('filterAlert').value;
