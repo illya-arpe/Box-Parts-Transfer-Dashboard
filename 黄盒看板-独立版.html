@@ -102,7 +102,7 @@
     }
 
     .subtitle {
-      color: rgba(255,255,255,0.8);
+      color: #ffffff;
       font-size: 14px;
       margin-top: 4px;
       margin-left: 48px;
@@ -442,6 +442,7 @@
       gap: 10px;
       flex-wrap: wrap;
       align-items: center;
+      position: relative;
     }
 
     .select-wrapper {
@@ -512,6 +513,71 @@
       pointer-events: none;
     }
 
+    .btn-primary {
+      height: 38px;
+      border: none;
+      border-radius: 8px;
+      padding: 0 16px;
+      background: var(--primary);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    .btn-secondary {
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 16px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    .formula-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: help;
+      padding: 0 4px;
+      user-select: none;
+    }
+    .formula-hint:hover { color: var(--primary); }
+    .formula-wrapper { position: relative; display: inline-block; }
+
+    .formula-popover {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      min-width: 380px;
+      font-size: 12px;
+      line-height: 1.8;
+      color: var(--text-muted);
+      text-align: left;
+      z-index: 100;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .formula-wrapper:hover .formula-popover { display: block; }
+
+    .formula-title { font-weight: 600; color: var(--text); margin-bottom: 8px; font-size: 13px; }
+    .formula-popover p { margin: 0 0 3px; }
+    .formula-divider { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .alert-r { color: #ef4444; font-weight: 600; }
+    .alert-o { color: #f97316; font-weight: 600; }
+    .alert-y { color: #eab308; font-weight: 600; }
+    .alert-g { color: #22c55e; font-weight: 600; }
+
     /* ========== Table ========== */
     .table-wrapper {
       border: 1px solid var(--border);
@@ -543,7 +609,7 @@
     }
 
     thead tr:first-child th {
-      background: #f1f5f9;
+      background: transparent;
       border-bottom: 2px solid var(--border);
     }
 
@@ -553,41 +619,20 @@
 
     th {
       padding: 12px 14px;
-      text-align: left;
+      text-align: center;
       font-weight: 600;
       font-size: 12px;
       color: var(--text-secondary);
-      text-transform: uppercase;
       letter-spacing: 0.05em;
       white-space: nowrap;
-      background: #f1f5f9;
+      background: #ffffff;
+      border: 1px solid var(--border);
     }
 
     th.num { text-align: right; }
     th.center { text-align: center; }
 
     /* Sticky frozen columns (left) */
-    .frozen-0 {
-      position: sticky;
-      left: 0;
-      z-index: 9;
-    }
-    .frozen-1 {
-      position: sticky;
-      left: 0;
-      z-index: 8;
-    }
-    .frozen-2 {
-      position: sticky;
-      left: 0;
-      z-index: 7;
-    }
-    .frozen-3 {
-      position: sticky;
-      left: 0;
-      z-index: 6;
-    }
-
     td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border-light);
@@ -604,10 +649,7 @@
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:nth-child(even) td { background: #fafbfc; }
     tbody tr:nth-child(even):hover td { background: var(--surface-hover); }
-    tbody tr:nth-child(even) td.frozen-0,
-    tbody tr:nth-child(even) td.frozen-1,
-    tbody tr:nth-child(even) td.frozen-2,
-    tbody tr:nth-child(even) td.frozen-3 { background: #fafbfc; }
+    tbody tr:nth-child(even) td { background: #fafbfc; }
 
     tbody tr[data-level="R"] td:first-child { border-left: 3px solid var(--danger); }
     tbody tr[data-level="O"] td:first-child { border-left: 3px solid var(--warning); }
@@ -910,6 +952,11 @@
           <div class="sheet-hint" id="sheetHint">点击刷新数据</div>
         </div>
         <div class="sheet-action">
+          <a href="https://docs.google.com/spreadsheets/d/1H4Dyg4ZAf4kJ3C-MEInm4zAT9XyQRDfCl4KgIWkywyM/edit?usp=sharing" target="_blank" rel="noopener noreferrer" title="打开 Google Sheets" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;background:#fff;border:1px solid #e5e7eb;color:#4285f4;text-decoration:none;transition:all 0.2s;margin-right:4px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+            </svg>
+          </a>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -991,10 +1038,53 @@
               <option value="G">G 正常</option>
             </select>
           </div>
+          <div class="select-wrapper">
+            <select id="filterCountry" class="select">
+              <option value="">国家：全部</option>
+              <option value="TH">TH</option>
+              <option value="VN">VN</option>
+              <option value="SG">SG</option>
+              <option value="MY">MY</option>
+              <option value="ID">ID</option>
+              <option value="PH">PH</option>
+              <option value="CN">CN</option>
+            </select>
+          </div>
+          <div class="select-wrapper">
+            <select id="filterWarehouse" class="select">
+              <option value="">仓库名：全部</option>
+              <option value="泰国主仓-AP">泰国主仓-AP</option>
+              <option value="越南胡志明京东仓">越南胡志明京东仓</option>
+              <option value="新加坡百世仓">新加坡百世仓</option>
+              <option value="马来京东仓">马来京东仓</option>
+              <option value="新印尼Flash本地仓">新印尼Flash本地仓</option>
+              <option value="菲律宾C仓">菲律宾C仓</option>
+              <option value="余姚仓">余姚仓</option>
+            </select>
+          </div>
           <div class="search">
             <span class="search-icon">🔍</span>
-            <input id="searchInput" class="search-input" type="text" placeholder="搜索 SKU..." />
+            <input id="searchInput" class="search-input" type="text" placeholder="搜索主品SKU / 黄盒SKU" />
           </div>
+          <button id="searchBtn" class="btn-primary" onclick="applyFilters()">搜索</button>
+          <span class="formula-wrapper">
+            <span class="formula-hint">查看公式说明</span>
+            <div class="formula-popover">
+              <div class="formula-title">📐 计算公式</div>
+              <p>发货失败率 = 2%</p>
+              <p>黄盒SKU含"HUAH"：换黄盒比例 = 20%</p>
+              <p>黄盒SKU含"CAHE"：换黄盒比例 = 10%</p>
+              <p>其他SKU：换黄盒比例 = 20%</p>
+              <p>预估90天发货失败 = 主品日均销 × 2% × 90</p>
+              <p>预估90天黄盒需求 = 发货失败数 × 换黄盒比例</p>
+              <p>调拨量 = 预估需求 - 海外仓可用 - 在途</p>
+              <div class="formula-divider">🚨 预警等级说明</div>
+              <p><span class="alert-r">R 紧急</span>：调拨量>0 且 国内仓可用 &lt; 调拨量</p>
+              <p><span class="alert-o">O 预警</span>：调拨量>0 且 国内仓可用 ≥ 调拨量</p>
+              <p><span class="alert-y">Y 关注</span>：调拨量≤0 且 海外仓可用 &lt; 30天预估</p>
+              <p><span class="alert-g">G 正常</span>：其他情况</p>
+            </div>
+          </span>
         </div>
       </div>
 
@@ -1004,19 +1094,19 @@
             <colgroup id="dataColgroup"></colgroup>
             <thead>
               <tr>
-                <th colspan="1" class="frozen-0">预警</th>
-                <th colspan="2" class="frozen-1">分类</th>
-                <th class="frozen-2">黄盒SKU</th>
-                <th colspan="7">主品参数</th>
-                <th colspan="5">黄盒参数</th>
-                <th colspan="4">计算结果</th>
-                <th colspan="2">人工调整</th>
+                <th colspan="1" style="background:#fee2e2;color:#991b1b;border-color:#fecaca;">预警</th>
+                <th colspan="2" style="background:#dbeafe;color:#1e40af;border-color:#bfdbfe;">分类</th>
+                <th style="background:#f3e8ff;color:#6b21a8;border-color:#e9d5ff;">黄盒SKU</th>
+                <th colspan="7" style="background:#dcfce7;color:#166534;border-color:#bbf7d0;">主品参数</th>
+                <th colspan="5" style="background:#ffedd5;color:#9a3412;border-color:#fed7aa;">黄盒参数</th>
+                <th colspan="4" style="background:#cffafe;color:#155e75;border-color:#a5f3fc;">计算结果</th>
+                <th colspan="2" style="background:#e0e7ff;color:#3730a3;border-color:#c7d2fe;">人工调整</th>
               </tr>
-              <tr>
-                <th class="center frozen-0">预警等级</th>
-                <th class="frozen-1">国家</th>
-                <th class="frozen-2">仓库名</th>
-                <th class="frozen-3">黄盒SKU</th>
+              <tr style="background: var(--surface);">
+                <th class="center">预警等级</th>
+                <th>国家</th>
+                <th>仓库名</th>
+                <th>黄盒SKU</th>
                 <th>主品SKU</th>
                 <th>等级</th>
                 <th class="num">主品在途</th>
@@ -1032,7 +1122,17 @@
                 <th class="num">预估发货失败</th>
                 <th class="num">预估需求量</th>
                 <th class="num">计算调拨</th>
-                <th class="num">优先级分</th>
+                <th class="num">
+                  <span class="formula-wrapper">
+                    <span class="formula-hint">优先级分 ❓</span>
+                    <div class="formula-popover">
+                      <div class="formula-title">优先级分数</div>
+                      <p>总分 = 预警分 + 等级分×10 + min(调拨量, 99)</p>
+                      <p>预警分：<span class="alert-r">R=400</span>, <span class="alert-o">O=300</span>, <span class="alert-y">Y=200</span>, <span class="alert-g">G=100</span></p>
+                      <p>等级分：<span class="alert-r">0_P0=30</span>, <span class="alert-o">1_P1=20</span>, <span class="alert-y">2_新品=10</span>, <span style="color: var(--text-muted);">其余等级=0</span></p>
+                    </div>
+                  </span>
+                </th>
                 <th class="num">调整后</th>
                 <th>调整原因</th>
               </tr>
@@ -1345,16 +1445,27 @@
       });
     }
 
+    // ========== Apply filters (trigger search) ==========
+    function applyFilters() {
+      currentPage = 1;
+      render();
+      syncCardHighlight();
+    }
+
     // ========== Render table (single table, sticky frozen columns) ==========
     function render() {
       const processed = getProcessed();
       const gradeFilter = $('filterGrade').value;
       const alertFilter = $('filterAlert').value;
+      const countryFilter = $('filterCountry').value;
+      const warehouseFilter = $('filterWarehouse').value;
       const search = $('searchInput').value.trim().toLowerCase();
 
       const filtered = processed.filter(p => {
         if (gradeFilter && p.grade !== gradeFilter) return false;
         if (alertFilter && p.level !== alertFilter) return false;
+        if (countryFilter && p.country !== countryFilter) return false;
+        if (warehouseFilter && p.warehouse !== warehouseFilter) return false;
         if (search) {
           const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
           if (!hay.includes(search)) return false;
@@ -1401,10 +1512,10 @@
         const tr = document.createElement('tr');
         tr.dataset.level = p.level;
         tr.innerHTML = `
-          <td class="center frozen-0"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
-          <td class="frozen-1">${escapeHtml(p.country)}</td>
-          <td class="frozen-2">${escapeHtml(p.warehouse)}</td>
-          <td class="frozen-3">${escapeHtml(p.boxSku)}</td>
+          <td class="center"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
+          <td>${escapeHtml(p.country)}</td>
+          <td>${escapeHtml(p.warehouse)}</td>
+          <td>${escapeHtml(p.boxSku)}</td>
           <td>${escapeHtml(p.mainSku)}</td>
           <td>${gradeTag(p.grade)}</td>
           <td class="num">${round(p.mainTransit)}</td>
@@ -1546,10 +1657,10 @@
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="center frozen-0" style="font-size:11px;color:var(--text-muted)">${labels}</td>
-        <td class="frozen-1"></td>
-        <td class="frozen-2"></td>
-        <td class="frozen-3"></td>
+        <td class="center" style="font-size:11px;color:var(--text-muted)">${labels}</td>
+        <td></td>
+        <td></td>
+        <td></td>
         <td></td><td></td><td></td><td></td><td></td><td></td>
         <td></td><td></td><td></td><td></td><td></td><td></td>
         <td class="num" style="font-weight:600;color:${sumCalc >= 0 ? '#ea580c' : '#16a34a'}">${round(sumCalc)}</td>
@@ -1593,6 +1704,8 @@
       try { localStorage.setItem('yellowbox_alert', $('filterAlert').value); } catch {}
       render(); syncCardHighlight();
     });
+    $('filterCountry').addEventListener('change', () => { render(); syncCardHighlight(); });
+    $('filterWarehouse').addEventListener('change', () => { render(); syncCardHighlight(); });
     $('searchInput').addEventListener('input', () => { render(); syncCardHighlight(); });
 
     $('tableBody').addEventListener('focusout', (e) => {
@@ -1609,6 +1722,8 @@
       editedRows[idx][field] = value;
       try { localStorage.setItem('yellowbox_edits', JSON.stringify(editedRows)); } catch {}
     });
+
+    $('btnExport').addEventListener('click', () => {
       const processed = getProcessed();
       const gradeFilter = $('filterGrade').value;
       const alertFilter = $('filterAlert').value;
@@ -1701,6 +1816,11 @@
 
     $('sheetUrl').addEventListener('keydown', e => { if (e.key === 'Enter') loadSheet(); });
     $('sheetName').addEventListener('keydown', e => { if (e.key === 'Enter') loadSheet(); });
+
+    // 搜索框回车触发搜索
+    document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
   </script>
+
+  <!-- 公式说明已改为悬停弹窗，无需独立模态框 -->
 </body>
 </html>
