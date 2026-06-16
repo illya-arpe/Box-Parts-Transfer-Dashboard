@@ -1099,30 +1099,33 @@
                 <th style="background:#f3e8ff;color:#6b21a8;border-color:#e9d5ff;">黄盒SKU</th>
                 <th colspan="7" style="background:#dcfce7;color:#166534;border-color:#bbf7d0;">主品参数</th>
                 <th colspan="5" style="background:#ffedd5;color:#9a3412;border-color:#fed7aa;">黄盒参数</th>
-                <th colspan="4" style="background:#cffafe;color:#155e75;border-color:#a5f3fc;">计算结果</th>
-                <th colspan="2" style="background:#e0e7ff;color:#3730a3;border-color:#c7d2fe;">人工调整</th>
-              </tr>
-              <tr style="background: var(--surface);">
-                <th class="center">预警等级</th>
-                <th>国家</th>
-                <th>仓库名</th>
-                <th>黄盒SKU</th>
-                <th>主品SKU</th>
-                <th>等级</th>
-                <th class="num">主品在途</th>
-                <th class="num">主品仓库可用</th>
-                <th class="num">主品计划在途</th>
-                <th class="num">主品90天销量</th>
-                <th class="num">主品日均销</th>
-                <th class="num">黄盒在途</th>
-                <th class="num">海外仓可用</th>
-                <th class="num">计划在途</th>
-                <th class="num">国内仓可用</th>
-                <th class="num">黄盒90天销量</th>
-                <th class="num">预估发货失败</th>
-                <th class="num">预估需求量</th>
-                <th class="num">计算调拨</th>
-                <th class="num">
+            <th colspan="5" style="background:#fce7f3;color:#9d174d;border-color:#fbcfe8;">库存参考</th>
+            <th colspan="4" style="background:#cffafe;color:#155e75;border-color:#a5f3fc;">计算结果</th>
+            <th colspan="2" style="background:#e0e7ff;color:#3730a3;border-color:#c7d2fe;">人工调整</th>
+          </tr>
+          <tr style="background: var(--surface);">
+            <th class="center">预警等级</th>
+            <th>国家</th>
+            <th>仓库名</th>
+            <th>黄盒SKU</th>
+            <th>主品SKU</th>
+            <th>等级</th>
+            <th class="num">主品在途</th>
+            <th class="num">主品仓库可用</th>
+            <th class="num">主品计划在途</th>
+            <th class="num">主品90天销量</th>
+            <th class="num">主品日均销</th>
+            <th class="num">黄盒在途</th>
+            <th class="num">海外仓可用</th>
+            <th class="num">黄盒消耗率<span class="formula-wrapper"><span class="formula-hint">❓</span><div class="formula-popover"><div class="formula-title">黄盒消耗率</div><p>黄盒消耗率 = 黄盒90天销量 ÷ 主品90天销量</p><p style="color:var(--text-muted);font-size:12px;">主品销量为0时显示"—"</p></div></span></th>
+            <th class="num">黄盒可售天数<span class="formula-wrapper"><span class="formula-hint">❓</span><div class="formula-popover"><div class="formula-title">黄盒可售天数</div><p>黄盒日消耗量 = 黄盒90天销量 ÷ 90</p><p>黄盒可售天数 = 海外仓黄盒可用 ÷ 黄盒日消耗量</p><p style="color:var(--text-muted);font-size:12px;">黄盒销量为0时显示"—"</p></div></span></th>
+            <th class="num">计划在途</th>
+            <th class="num">国内仓可用</th>
+            <th class="num">黄盒90天销量</th>
+            <th class="num">预估发货失败</th>
+            <th class="num">预估需求量</th>
+            <th class="num">计算调拨</th>
+            <th class="num">
                   <span class="formula-wrapper">
                     <span class="formula-hint">优先级分 ❓</span>
                     <div class="formula-popover">
@@ -1385,6 +1388,14 @@
       return `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;background:${tagColors[color]}22;color:${tagColors[color]||'#94a3b8'};border:1px solid ${tagColors[color] || '#94a3b8'}44;">${grade || ''}</span>`;
     }
 
+    function sellDaysColor(days) {
+      if (days === null || days === undefined) return '#94a3b8';
+      if (days < 100) return '#dc2626';
+      if (days < 200) return '#ea580c';
+      if (days < 500) return '#ca8a04';
+      return '#16a34a';
+    }
+
     function processRow(row) {
       const colMainSku     = findCol(headers, ['主品SKU', 'main_sku', 'main sku']);
       const colBoxSku      = findCol(headers, ['黄盒SKU', 'box_sku', 'box sku']);
@@ -1413,6 +1424,9 @@
       const domestic      = colDomAvail     >= 0 ? toNum(row[headers[colDomAvail]])   : 0;
       const boxSales90d   = colBoxSales     >= 0 ? toNum(row[headers[colBoxSales]])   : 0;
 
+      const boxConsumeRate = mainSales90d > 0 ? (boxSales90d / mainSales90d) : null;
+      const boxSellDays    = boxSales90d > 0 ? (overseas * 90 / boxSales90d) : null;
+
       const estimatedFailure = mainDaily * 0.02 * 90;
       const estimatedDemand  = estimatedFailure * 0.20;
       const calcTransfer     = estimatedDemand - overseas - boxTransit;
@@ -1428,6 +1442,7 @@
         grade,
         mainTransit, mainAvail, mainPlan, mainSales90d, mainDaily,
         boxTransit, overseas, planTransit, domestic, boxSales90d,
+        boxConsumeRate, boxSellDays,
         estimatedFailure, estimatedDemand, calcTransfer, level, priority,
       };
     }
@@ -1525,6 +1540,8 @@
           <td class="num">${round(p.mainDaily)}</td>
           <td class="num">${round(p.boxTransit)}</td>
           <td class="num">${round(p.overseas)}</td>
+          <td class="num" style="color:${p.boxConsumeRate === null ? '#94a3b8' : '#1f2937'}">${p.boxConsumeRate === null ? '—' : (p.boxConsumeRate * 100).toFixed(1) + '%'}</td>
+          <td class="num" style="color:${p.boxSellDays === null ? '#94a3b8' : sellDaysColor(p.boxSellDays)};font-weight:600">${p.boxSellDays === null ? '—' : Math.round(p.boxSellDays) + '天'}</td>
           <td class="num">${round(p.planTransit)}</td>
           <td class="num">${round(p.domestic)}</td>
           <td class="num">${round(p.boxSales90d)}</td>
@@ -1739,10 +1756,12 @@
         return true;
       });
 
-      const header = ['国家','仓库名','黄盒SKU','主品SKU','等级','主品在途','主品仓库可用','主品计划在途','主品90天销量','主品日均销','黄盒在途','海外仓可用','计划在途','国内仓可用','黄盒90天销量','预估发货失败','预估需求量','计算调拨','优先级分','调整后','调整原因','预警等级'];
+      const header = ['国家','仓库名','黄盒SKU','主品SKU','等级','主品在途','主品仓库可用','主品计划在途','主品90天销量','主品日均销','黄盒在途','海外仓可用','黄盒消耗率','黄盒可售天数','计划在途','国内仓可用','黄盒90天销量','预估发货失败','预估需求量','计算调拨','优先级分','调整后','调整原因','预警等级'];
       const rows = [header];
       filtered.forEach(p => {
-        rows.push([p.country,p.warehouse,p.boxSku,p.mainSku,p.grade,round(p.mainTransit),round(p.mainAvail),round(p.mainPlan),round(p.mainSales90d),round(p.mainDaily),round(p.boxTransit),round(p.overseas),round(p.planTransit),round(p.domestic),round(p.boxSales90d),round(p.estimatedFailure),round(p.estimatedDemand),round(p.calcTransfer),round(p.priority),p.adjusted,p.reason,p.level]);
+        const consumeRateStr = p.boxConsumeRate === null ? '—' : (p.boxConsumeRate * 100).toFixed(1) + '%';
+        const sellDaysStr    = p.boxSellDays === null ? '—' : Math.round(p.boxSellDays) + '天';
+        rows.push([p.country,p.warehouse,p.boxSku,p.mainSku,p.grade,round(p.mainTransit),round(p.mainAvail),round(p.mainPlan),round(p.mainSales90d),round(p.mainDaily),round(p.boxTransit),round(p.overseas),consumeRateStr,sellDaysStr,round(p.planTransit),round(p.domestic),round(p.boxSales90d),round(p.estimatedFailure),round(p.estimatedDemand),round(p.calcTransfer),round(p.priority),p.adjusted,p.reason,p.level]);
       });
 
       const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
