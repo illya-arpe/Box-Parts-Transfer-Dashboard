@@ -633,6 +633,63 @@
     th.center { text-align: center; }
 
     /* Sticky frozen columns (left) */
+    th.frozen-col,
+    td.frozen-col {
+      position: sticky;
+      z-index: 20;
+    }
+
+    th.frozen-col { z-index: 30; }
+    td.frozen-col { z-index: 5; }
+
+    th.frozen-col-col1 { left: 0; min-width: 80px; background: #ffffff; }
+    th.frozen-col-col2 { left: 80px; min-width: 60px; background: #ffffff; }
+    th.frozen-col-col3 { left: 140px; min-width: 140px; background: #ffffff; }
+    th.frozen-col-col4 { left: 280px; min-width: 140px; background: #ffffff; }
+    td.frozen-col-col1 { left: 0; min-width: 80px; background: var(--surface); }
+    td.frozen-col-col2 { left: 80px; min-width: 60px; background: var(--surface); }
+    td.frozen-col-col3 { left: 140px; min-width: 140px; background: var(--surface); }
+    td.frozen-col-col4 { left: 280px; min-width: 140px; background: var(--surface); }
+
+    th.frozen-row1-col1 {
+      position: sticky;
+      left: 0;
+      top: 0;
+      z-index: 40;
+      min-width: 80px;
+    }
+
+    th.frozen-row1-col2 {
+      position: sticky;
+      left: 80px;
+      top: 0;
+      z-index: 40;
+      min-width: 200px;
+    }
+
+    th.frozen-row1-col3 {
+      position: sticky;
+      left: 280px;
+      top: 0;
+      z-index: 40;
+      min-width: 140px;
+    }
+
+    tbody tr:hover td.frozen-col-col1,
+    tbody tr:hover td.frozen-col-col2,
+    tbody tr:hover td.frozen-col-col3,
+    tbody tr:hover td.frozen-col-col4 { background: var(--surface-hover); }
+
+    tbody tr:nth-child(even) td.frozen-col-col1,
+    tbody tr:nth-child(even) td.frozen-col-col2,
+    tbody tr:nth-child(even) td.frozen-col-col3,
+    tbody tr:nth-child(even) td.frozen-col-col4 { background: #fafbfc; }
+
+    tbody tr:nth-child(even):hover td.frozen-col-col1,
+    tbody tr:nth-child(even):hover td.frozen-col-col2,
+    tbody tr:nth-child(even):hover td.frozen-col-col3,
+    tbody tr:nth-child(even):hover td.frozen-col-col4 { background: var(--surface-hover); }
+
     td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border-light);
@@ -1094,20 +1151,20 @@
             <colgroup id="dataColgroup"></colgroup>
             <thead>
               <tr>
-                <th colspan="1" style="background:#fee2e2;color:#991b1b;border-color:#fecaca;">预警</th>
-                <th colspan="2" style="background:#dbeafe;color:#1e40af;border-color:#bfdbfe;">分类</th>
-                <th style="background:#f3e8ff;color:#6b21a8;border-color:#e9d5ff;">黄盒SKU</th>
+                <th colspan="1" class="frozen-row1-col1" style="background:#fee2e2;color:#991b1b;border-color:#fecaca;">预警</th>
+                <th colspan="2" class="frozen-row1-col2" style="background:#dbeafe;color:#1e40af;border-color:#bfdbfe;">分类</th>
+                <th class="frozen-row1-col3" style="background:#f3e8ff;color:#6b21a8;border-color:#e9d5ff;">黄盒SKU</th>
                 <th colspan="7" style="background:#dcfce7;color:#166534;border-color:#bbf7d0;">主品参数</th>
-                <th colspan="5" style="background:#ffedd5;color:#9a3412;border-color:#fed7aa;">黄盒参数</th>
-            <th colspan="5" style="background:#fce7f3;color:#9d174d;border-color:#fbcfe8;">库存参考</th>
-            <th colspan="4" style="background:#cffafe;color:#155e75;border-color:#a5f3fc;">计算结果</th>
-            <th colspan="2" style="background:#e0e7ff;color:#3730a3;border-color:#c7d2fe;">人工调整</th>
+                <th colspan="7" style="background:#ffedd5;color:#9a3412;border-color:#fed7aa;">黄盒参数</th>
+            <th colspan="3" style="background:#fce7f3;color:#9d174d;border-color:#fbcfe8;">库存参考</th>
+            <th colspan="2" style="background:#cffafe;color:#155e75;border-color:#a5f3fc;">计算结果</th>
+            <th colspan="1" style="background:#e0e7ff;color:#3730a3;border-color:#c7d2fe;">人工调整</th>
           </tr>
           <tr style="background: var(--surface);">
-            <th class="center">预警等级</th>
-            <th>国家</th>
-            <th>仓库名</th>
-            <th>黄盒SKU</th>
+            <th class="center frozen-col frozen-col-col1">预警等级</th>
+            <th class="frozen-col frozen-col-col2">国家</th>
+            <th class="frozen-col frozen-col-col3">仓库名</th>
+            <th class="frozen-col frozen-col-col4">黄盒SKU</th>
             <th>主品SKU</th>
             <th>等级</th>
             <th class="num">主品在途</th>
@@ -1117,11 +1174,11 @@
             <th class="num">主品日均销</th>
             <th class="num">黄盒在途</th>
             <th class="num">海外仓可用</th>
+            <th class="num">黄盒90天销量</th>
             <th class="num">黄盒消耗率<span class="formula-wrapper"><span class="formula-hint">❓</span><div class="formula-popover"><div class="formula-title">黄盒消耗率</div><p>黄盒消耗率 = 黄盒90天销量 ÷ 主品90天销量</p><p style="color:var(--text-muted);font-size:12px;">主品销量为0时显示"—"</p></div></span></th>
             <th class="num">黄盒可售天数<span class="formula-wrapper"><span class="formula-hint">❓</span><div class="formula-popover"><div class="formula-title">黄盒可售天数</div><p>黄盒日消耗量 = 黄盒90天销量 ÷ 90</p><p>黄盒可售天数 = 海外仓黄盒可用 ÷ 黄盒日消耗量</p><p style="color:var(--text-muted);font-size:12px;">黄盒销量为0时显示"—"</p></div></span></th>
             <th class="num">计划在途</th>
             <th class="num">国内仓可用</th>
-            <th class="num">黄盒90天销量</th>
             <th class="num">预估发货失败</th>
             <th class="num">预估需求量</th>
             <th class="num">计算调拨</th>
@@ -1527,10 +1584,10 @@
         const tr = document.createElement('tr');
         tr.dataset.level = p.level;
         tr.innerHTML = `
-          <td class="center"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
-          <td>${escapeHtml(p.country)}</td>
-          <td>${escapeHtml(p.warehouse)}</td>
-          <td>${escapeHtml(p.boxSku)}</td>
+          <td class="center frozen-col frozen-col-col1"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;background:${color}22;color:${color};border:1px solid ${color}66;">${p.level} ${levelLabel}</span></td>
+          <td class="frozen-col frozen-col-col2">${escapeHtml(p.country)}</td>
+          <td class="frozen-col frozen-col-col3">${escapeHtml(p.warehouse)}</td>
+          <td class="frozen-col frozen-col-col4">${escapeHtml(p.boxSku)}</td>
           <td>${escapeHtml(p.mainSku)}</td>
           <td>${gradeTag(p.grade)}</td>
           <td class="num">${round(p.mainTransit)}</td>
@@ -1540,11 +1597,11 @@
           <td class="num">${round(p.mainDaily)}</td>
           <td class="num">${round(p.boxTransit)}</td>
           <td class="num">${round(p.overseas)}</td>
+          <td class="num">${round(p.boxSales90d)}</td>
           <td class="num" style="color:${p.boxConsumeRate === null ? '#94a3b8' : '#1f2937'}">${p.boxConsumeRate === null ? '—' : (p.boxConsumeRate * 100).toFixed(1) + '%'}</td>
           <td class="num" style="color:${p.boxSellDays === null ? '#94a3b8' : sellDaysColor(p.boxSellDays)};font-weight:600">${p.boxSellDays === null ? '—' : Math.round(p.boxSellDays) + '天'}</td>
           <td class="num">${round(p.planTransit)}</td>
           <td class="num">${round(p.domestic)}</td>
-          <td class="num">${round(p.boxSales90d)}</td>
           <td class="num">${round(p.estimatedFailure)}</td>
           <td class="num">${round(p.estimatedDemand)}</td>
           <td class="num" style="font-weight:600;color:${p.calcTransfer < 0 ? '#16a34a' : '#ea580c'}">${round(p.calcTransfer)}</td>
@@ -1674,12 +1731,13 @@
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="center" style="font-size:11px;color:var(--text-muted)">${labels}</td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td class="center frozen-col frozen-col-col1" style="font-size:11px;color:var(--text-muted)">${labels}</td>
+        <td class="frozen-col frozen-col-col2"></td>
+        <td class="frozen-col frozen-col-col3"></td>
+        <td class="frozen-col frozen-col-col4"></td>
         <td></td><td></td><td></td><td></td><td></td><td></td>
         <td></td><td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td>
         <td class="num" style="font-weight:600;color:${sumCalc >= 0 ? '#ea580c' : '#16a34a'}">${round(sumCalc)}</td>
         <td></td>
         <td class="num" style="font-weight:600">${round(sumAdjusted)}</td>
@@ -1756,12 +1814,12 @@
         return true;
       });
 
-      const header = ['国家','仓库名','黄盒SKU','主品SKU','等级','主品在途','主品仓库可用','主品计划在途','主品90天销量','主品日均销','黄盒在途','海外仓可用','黄盒消耗率','黄盒可售天数','计划在途','国内仓可用','黄盒90天销量','预估发货失败','预估需求量','计算调拨','优先级分','调整后','调整原因','预警等级'];
+      const header = ['国家','仓库名','黄盒SKU','主品SKU','等级','主品在途','主品仓库可用','主品计划在途','主品90天销量','主品日均销','黄盒在途','海外仓可用','黄盒90天销量','黄盒消耗率','黄盒可售天数','计划在途','国内仓可用','预估发货失败','预估需求量','计算调拨','优先级分','调整后','调整原因','预警等级'];
       const rows = [header];
       filtered.forEach(p => {
         const consumeRateStr = p.boxConsumeRate === null ? '—' : (p.boxConsumeRate * 100).toFixed(1) + '%';
         const sellDaysStr    = p.boxSellDays === null ? '—' : Math.round(p.boxSellDays) + '天';
-        rows.push([p.country,p.warehouse,p.boxSku,p.mainSku,p.grade,round(p.mainTransit),round(p.mainAvail),round(p.mainPlan),round(p.mainSales90d),round(p.mainDaily),round(p.boxTransit),round(p.overseas),consumeRateStr,sellDaysStr,round(p.planTransit),round(p.domestic),round(p.boxSales90d),round(p.estimatedFailure),round(p.estimatedDemand),round(p.calcTransfer),round(p.priority),p.adjusted,p.reason,p.level]);
+        rows.push([p.country,p.warehouse,p.boxSku,p.mainSku,p.grade,round(p.mainTransit),round(p.mainAvail),round(p.mainPlan),round(p.mainSales90d),round(p.mainDaily),round(p.boxTransit),round(p.overseas),round(p.boxSales90d),consumeRateStr,sellDaysStr,round(p.planTransit),round(p.domestic),round(p.estimatedFailure),round(p.estimatedDemand),round(p.calcTransfer),round(p.priority),p.adjusted,p.reason,p.level]);
       });
 
       const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
