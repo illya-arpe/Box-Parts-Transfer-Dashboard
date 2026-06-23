@@ -942,7 +942,7 @@
     /* ========== Multi Select ========== */
     .multi-select {
       position: relative;
-      min-width: 180px;
+      width: 180px;
       font-size: 14px;
       user-select: none;
     }
@@ -960,7 +960,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      min-width: 160px;
+      width: 180px;
     }
 
     .multi-select-trigger:hover {
@@ -974,6 +974,7 @@
 
     .multi-select-trigger-text {
       flex: 1;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1055,6 +1056,39 @@
 
     .multi-select-dropdown input[type="checkbox"] {
       accent-color: var(--primary);
+    }
+
+    .multi-select-actions {
+      display: flex;
+      gap: 6px;
+      padding: 4px 6px 6px;
+    }
+
+    .multi-select-action-btn {
+      flex: 1;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    .multi-select-action-btn:hover {
+      background: var(--bg);
+      border-color: #cbd5e1;
+    }
+
+    .multi-select-action-btn.primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .multi-select-action-btn.primary:hover {
+      filter: brightness(1.1);
     }
 
     /* ========== Responsive ========== */
@@ -1195,6 +1229,10 @@
               <button type="button" class="multi-select-clear" id="gradeClear" title="清除已选等级">✕</button>
             </div>
             <div class="multi-select-dropdown" id="gradeDropdown">
+              <div class="multi-select-actions">
+                <button type="button" class="multi-select-action-btn primary" id="gradeSelectAll">全选</button>
+                <button type="button" class="multi-select-action-btn" id="gradeInvert">反选</button>
+              </div>
               <label><input type="checkbox" value="0_P0" /><span>0_P0</span></label>
               <label><input type="checkbox" value="1_P1" /><span>1_P1</span></label>
               <label><input type="checkbox" value="2_新品" /><span>2_新品</span></label>
@@ -2006,6 +2044,22 @@
 
       $('gradeDropdown').addEventListener('click', (e) => {
         e.stopPropagation();
+      });
+
+      $('gradeSelectAll').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const checks = $('gradeDropdown').querySelectorAll('input[type="checkbox"]');
+        checks.forEach(cb => cb.checked = true);
+        syncGradeSelection();
+        render();
+      });
+
+      $('gradeInvert').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const checks = $('gradeDropdown').querySelectorAll('input[type="checkbox"]');
+        checks.forEach(cb => cb.checked = !cb.checked);
+        syncGradeSelection();
+        render();
       });
 
       document.addEventListener('click', () => {
