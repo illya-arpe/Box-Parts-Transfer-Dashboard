@@ -939,6 +939,124 @@
       padding: 0 2px;
     }
 
+    /* ========== Multi Select ========== */
+    .multi-select {
+      position: relative;
+      min-width: 180px;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    .multi-select-trigger {
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 32px 0 12px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 160px;
+    }
+
+    .multi-select-trigger:hover {
+      border-color: #cbd5e1;
+    }
+
+    .multi-select.open .multi-select-trigger {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .multi-select-trigger-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .multi-select-arrow {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 12px;
+    }
+
+    .multi-select-clear {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: none;
+      background: #cbd5e1;
+      color: #fff;
+      font-size: 10px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .multi-select-clear:hover {
+      background: var(--danger);
+    }
+
+    .multi-select.has-value .multi-select-clear {
+      display: inline-flex;
+    }
+
+    .multi-select.has-value .multi-select-arrow {
+      display: none;
+    }
+
+    .multi-select-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 220px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px;
+      box-shadow: var(--shadow-md);
+      z-index: 50;
+    }
+
+    .multi-select.open .multi-select-dropdown {
+      display: block;
+    }
+
+    .multi-select-dropdown label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+
+    .multi-select-dropdown label:hover {
+      background: var(--bg);
+    }
+
+    .multi-select-dropdown input[type="checkbox"] {
+      accent-color: var(--primary);
+    }
+
     /* ========== Responsive ========== */
     @media (max-width: 1200px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1070,54 +1188,70 @@
       <div class="section-header">
         <h2 class="section-title">补货明细</h2>
         <div class="toolbar">
-          <div class="select-wrapper">
-            <select id="filterGrade" class="select">
-              <option value="">商品等级：全部</option>
-              <option value="0_P0">0_P0</option>
-              <option value="1_P1">1_P1</option>
-              <option value="2_新品">2_新品</option>
-              <option value="3_营销品">3_营销品</option>
-              <option value="4_清仓">4_清仓</option>
-              <option value="5_停用">5_停用</option>
-              <option value="6_维修配件">6_维修配件</option>
-              <option value="7_特价品">7_特价品</option>
-              <option value="8_开发中">8_开发中</option>
-              <option value="9_非商用品">9_非商用品</option>
-              <option value="10000_暂未销售">10000_暂未销售</option>
-            </select>
+            <div class="multi-select" id="gradeMultiSelect">
+            <div class="multi-select-trigger" id="gradeTrigger">
+              <span class="multi-select-trigger-text">商品等级：全部</span>
+              <span class="multi-select-arrow">▾</span>
+              <button type="button" class="multi-select-clear" id="gradeClear" title="清除已选等级">✕</button>
+            </div>
+            <div class="multi-select-dropdown" id="gradeDropdown">
+              <label><input type="checkbox" value="0_P0" /><span>0_P0</span></label>
+              <label><input type="checkbox" value="1_P1" /><span>1_P1</span></label>
+              <label><input type="checkbox" value="2_新品" /><span>2_新品</span></label>
+              <label><input type="checkbox" value="3_营销品" /><span>3_营销品</span></label>
+              <label><input type="checkbox" value="4_清仓" /><span>4_清仓</span></label>
+              <label><input type="checkbox" value="5_停用" /><span>5_停用</span></label>
+              <label><input type="checkbox" value="6_维修配件" /><span>6_维修配件</span></label>
+              <label><input type="checkbox" value="7_特价品" /><span>7_特价品</span></label>
+              <label><input type="checkbox" value="8_开发中" /><span>8_开发中</span></label>
+              <label><input type="checkbox" value="9_非商用品" /><span>9_非商用品</span></label>
+              <label><input type="checkbox" value="10000_暂未销售" /><span>10000_暂未销售</span></label>
+            </div>
           </div>
-          <div class="select-wrapper">
-            <select id="filterAlert" class="select">
-              <option value="">预警级别：全部</option>
-              <option value="R">R 紧急</option>
-              <option value="O">O 预警</option>
-              <option value="Y">Y 关注</option>
-              <option value="G">G 正常</option>
-            </select>
+          <div class="multi-select" id="alertMultiSelect">
+            <div class="multi-select-trigger" id="alertTrigger">
+              <span class="multi-select-trigger-text">预警级别：全部</span>
+              <span class="multi-select-arrow">▾</span>
+              <button type="button" class="multi-select-clear" id="alertClear" title="清除已选预警级别">✕</button>
+            </div>
+            <div class="multi-select-dropdown" id="alertDropdown">
+              <label><input type="checkbox" value="R" /><span>R 紧急</span></label>
+              <label><input type="checkbox" value="O" /><span>O 预警</span></label>
+              <label><input type="checkbox" value="Y" /><span>Y 关注</span></label>
+              <label><input type="checkbox" value="G" /><span>G 正常</span></label>
+            </div>
           </div>
-          <div class="select-wrapper">
-            <select id="filterCountry" class="select">
-              <option value="">国家：全部</option>
-              <option value="TH">TH</option>
-              <option value="VN">VN</option>
-              <option value="SG">SG</option>
-              <option value="MY">MY</option>
-              <option value="ID">ID</option>
-              <option value="PH">PH</option>
-              <option value="CN">CN</option>
-            </select>
+          <div class="multi-select" id="countryMultiSelect">
+            <div class="multi-select-trigger" id="countryTrigger">
+              <span class="multi-select-trigger-text">国家：全部</span>
+              <span class="multi-select-arrow">▾</span>
+              <button type="button" class="multi-select-clear" id="countryClear" title="清除已选国家">✕</button>
+            </div>
+            <div class="multi-select-dropdown" id="countryDropdown">
+              <label><input type="checkbox" value="TH" /><span>TH</span></label>
+              <label><input type="checkbox" value="VN" /><span>VN</span></label>
+              <label><input type="checkbox" value="SG" /><span>SG</span></label>
+              <label><input type="checkbox" value="MY" /><span>MY</span></label>
+              <label><input type="checkbox" value="ID" /><span>ID</span></label>
+              <label><input type="checkbox" value="PH" /><span>PH</span></label>
+              <label><input type="checkbox" value="CN" /><span>CN</span></label>
+            </div>
           </div>
-          <div class="select-wrapper">
-            <select id="filterWarehouse" class="select">
-              <option value="">仓库名：全部</option>
-              <option value="泰国主仓-AP">泰国主仓-AP</option>
-              <option value="越南胡志明京东仓">越南胡志明京东仓</option>
-              <option value="新加坡百世仓">新加坡百世仓</option>
-              <option value="马来京东仓">马来京东仓</option>
-              <option value="新印尼Flash本地仓">新印尼Flash本地仓</option>
-              <option value="菲律宾C仓">菲律宾C仓</option>
-              <option value="余姚仓">余姚仓</option>
-            </select>
+          <div class="multi-select" id="warehouseMultiSelect">
+            <div class="multi-select-trigger" id="warehouseTrigger">
+              <span class="multi-select-trigger-text">仓库名：全部</span>
+              <span class="multi-select-arrow">▾</span>
+              <button type="button" class="multi-select-clear" id="warehouseClear" title="清除已选仓库名">✕</button>
+            </div>
+            <div class="multi-select-dropdown" id="warehouseDropdown">
+              <label><input type="checkbox" value="泰国主仓-AP" /><span>泰国主仓-AP</span></label>
+              <label><input type="checkbox" value="越南胡志明京东仓" /><span>越南胡志明京东仓</span></label>
+              <label><input type="checkbox" value="新加坡百世仓" /><span>新加坡百世仓</span></label>
+              <label><input type="checkbox" value="马来京东仓" /><span>马来京东仓</span></label>
+              <label><input type="checkbox" value="新印尼Flash本地仓" /><span>新印尼Flash本地仓</span></label>
+              <label><input type="checkbox" value="菲律宾C仓" /><span>菲律宾C仓</span></label>
+              <label><input type="checkbox" value="余姚仓" /><span>余姚仓</span></label>
+            </div>
           </div>
           <div class="search">
             <span class="search-icon">🔍</span>
@@ -1298,6 +1432,10 @@
     let loadingRows = false;
     let currentPage = 1;
     let pageSize = 50;
+    let selectedGrades = [];
+    let selectedAlerts = [];
+    let selectedCountries = [];
+    let selectedWarehouses = [];
 
     // ========== Load Sheet ==========
     async function loadSheet() {
@@ -1519,25 +1657,122 @@
 
     // ========== Apply filters (trigger search) ==========
     function applyFilters() {
+      syncGradeSelection();
+      syncAlertSelection();
+      syncCountrySelection();
+      syncWarehouseSelection();
       currentPage = 1;
       render();
       syncCardHighlight();
     }
 
+    function syncGradeSelection() {
+      const checks = document.querySelectorAll('#gradeDropdown input[type="checkbox"]');
+      selectedGrades = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+      const trigger = $('gradeTrigger');
+      const text = trigger.querySelector('.multi-select-trigger-text');
+      const root = $('gradeMultiSelect');
+      if (!selectedGrades.length) {
+        text.textContent = '商品等级：全部';
+        root.classList.remove('has-value');
+      } else {
+        text.textContent = '商品等级：' + selectedGrades.join('、');
+        root.classList.add('has-value');
+      }
+    }
+
+    function syncAlertSelection() {
+      const checks = document.querySelectorAll('#alertDropdown input[type="checkbox"]');
+      selectedAlerts = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+      const trigger = $('alertTrigger');
+      const text = trigger.querySelector('.multi-select-trigger-text');
+      const root = $('alertMultiSelect');
+      if (!selectedAlerts.length) {
+        text.textContent = '预警级别：全部';
+        root.classList.remove('has-value');
+      } else {
+        text.textContent = '预警级别：' + selectedAlerts.join('、');
+        root.classList.add('has-value');
+      }
+    }
+
+    function syncCountrySelection() {
+      const checks = document.querySelectorAll('#countryDropdown input[type="checkbox"]');
+      selectedCountries = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+      const trigger = $('countryTrigger');
+      const text = trigger.querySelector('.multi-select-trigger-text');
+      const root = $('countryMultiSelect');
+      if (!selectedCountries.length) {
+        text.textContent = '国家：全部';
+        root.classList.remove('has-value');
+      } else {
+        text.textContent = '国家：' + selectedCountries.join('、');
+        root.classList.add('has-value');
+      }
+    }
+
+    function syncWarehouseSelection() {
+      const checks = document.querySelectorAll('#warehouseDropdown input[type="checkbox"]');
+      selectedWarehouses = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+      const trigger = $('warehouseTrigger');
+      const text = trigger.querySelector('.multi-select-trigger-text');
+      const root = $('warehouseMultiSelect');
+      if (!selectedWarehouses.length) {
+        text.textContent = '仓库名：全部';
+        root.classList.remove('has-value');
+      } else {
+        text.textContent = '仓库名：' + selectedWarehouses.join('、');
+        root.classList.add('has-value');
+      }
+    }
+
+    function clearGradeSelection() {
+      const checks = document.querySelectorAll('#gradeDropdown input[type="checkbox"]');
+      checks.forEach(cb => cb.checked = false);
+      selectedGrades = [];
+      syncGradeSelection();
+      render();
+    }
+
+    function clearAlertSelection() {
+      const checks = document.querySelectorAll('#alertDropdown input[type="checkbox"]');
+      checks.forEach(cb => cb.checked = false);
+      selectedAlerts = [];
+      syncAlertSelection();
+      render();
+    }
+
+    function clearCountrySelection() {
+      const checks = document.querySelectorAll('#countryDropdown input[type="checkbox"]');
+      checks.forEach(cb => cb.checked = false);
+      selectedCountries = [];
+      syncCountrySelection();
+      render();
+    }
+
+    function clearWarehouseSelection() {
+      const checks = document.querySelectorAll('#warehouseDropdown input[type="checkbox"]');
+      checks.forEach(cb => cb.checked = false);
+      selectedWarehouses = [];
+      syncWarehouseSelection();
+      render();
+    }
+
     // ========== Render table (single table, sticky frozen columns) ==========
     function render() {
       const processed = getProcessed();
-      const gradeFilter = $('filterGrade').value;
-      const alertFilter = $('filterAlert').value;
-      const countryFilter = $('filterCountry').value;
-      const warehouseFilter = $('filterWarehouse').value;
+      syncGradeSelection();
+      const gradeFilters = selectedGrades.slice();
+      const alertFilters = selectedAlerts.slice();
+      const countryFilters = selectedCountries.slice();
+      const warehouseFilters = selectedWarehouses.slice();
       const search = $('searchInput').value.trim().toLowerCase();
 
       const filtered = processed.filter(p => {
-        if (gradeFilter && p.grade !== gradeFilter) return false;
-        if (alertFilter && p.level !== alertFilter) return false;
-        if (countryFilter && p.country !== countryFilter) return false;
-        if (warehouseFilter && p.warehouse !== warehouseFilter) return false;
+        if (gradeFilters.length && !gradeFilters.includes(p.grade)) return false;
+        if (alertFilters.length && !alertFilters.includes(p.level)) return false;
+        if (countryFilters.length && !countryFilters.includes(p.country)) return false;
+        if (warehouseFilters.length && !warehouseFilters.includes(p.warehouse)) return false;
         if (search) {
           const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
           if (!hay.includes(search)) return false;
@@ -1648,12 +1883,16 @@
 
     function getCurrentFiltered() {
       const processed = getProcessed();
-      const gradeFilter = $('filterGrade').value;
-      const alertFilter = $('filterAlert').value;
+      const gradeFilters = selectedGrades.slice();
+      const alertFilters = selectedAlerts.slice();
+      const countryFilters = selectedCountries.slice();
+      const warehouseFilters = selectedWarehouses.slice();
       const search = $('searchInput').value.trim().toLowerCase();
       return processed.filter(p => {
-        if (gradeFilter && p.grade !== gradeFilter) return false;
-        if (alertFilter && p.level !== alertFilter) return false;
+        if (gradeFilters.length && !gradeFilters.includes(p.grade)) return false;
+        if (alertFilters.length && !alertFilters.includes(p.level)) return false;
+        if (countryFilters.length && !countryFilters.includes(p.country)) return false;
+        if (warehouseFilters.length && !warehouseFilters.includes(p.warehouse)) return false;
         if (search) {
           const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
           if (!hay.includes(search)) return false;
@@ -1747,17 +1986,134 @@
     }
 
     // ========== Events ==========
+    function initGradeMultiSelect() {
+      const root = $('gradeMultiSelect');
+      const trigger = $('gradeTrigger');
+      const clearBtn = $('gradeClear');
+
+      trigger.addEventListener('click', (e) => {
+        if (e.target.closest('#gradeClear')) return;
+        e.stopPropagation();
+        const isOpen = root.classList.contains('open');
+        closeAllMultiSelects();
+        if (!isOpen) root.classList.add('open');
+      });
+
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearGradeSelection();
+      });
+
+      $('gradeDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      document.addEventListener('click', () => {
+        root.classList.remove('open');
+      });
+    }
+
+    function closeAllMultiSelects() {
+      document.querySelectorAll('.multi-select.open').forEach(el => el.classList.remove('open'));
+    }
+
+    function initAlertMultiSelect() {
+      const root = $('alertMultiSelect');
+      const trigger = $('alertTrigger');
+      const clearBtn = $('alertClear');
+
+      trigger.addEventListener('click', (e) => {
+        if (e.target.closest('#alertClear')) return;
+        e.stopPropagation();
+        const isOpen = root.classList.contains('open');
+        closeAllMultiSelects();
+        if (!isOpen) root.classList.add('open');
+      });
+
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearAlertSelection();
+      });
+
+      $('alertDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      document.addEventListener('click', () => {
+        root.classList.remove('open');
+      });
+    }
+
+    function initCountryMultiSelect() {
+      const root = $('countryMultiSelect');
+      const trigger = $('countryTrigger');
+      const clearBtn = $('countryClear');
+
+      trigger.addEventListener('click', (e) => {
+        if (e.target.closest('#countryClear')) return;
+        e.stopPropagation();
+        const isOpen = root.classList.contains('open');
+        closeAllMultiSelects();
+        if (!isOpen) root.classList.add('open');
+      });
+
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearCountrySelection();
+      });
+
+      $('countryDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      document.addEventListener('click', () => {
+        root.classList.remove('open');
+      });
+    }
+
+    function initWarehouseMultiSelect() {
+      const root = $('warehouseMultiSelect');
+      const trigger = $('warehouseTrigger');
+      const clearBtn = $('warehouseClear');
+
+      trigger.addEventListener('click', (e) => {
+        if (e.target.closest('#warehouseClear')) return;
+        e.stopPropagation();
+        const isOpen = root.classList.contains('open');
+        closeAllMultiSelects();
+        if (!isOpen) root.classList.add('open');
+      });
+
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearWarehouseSelection();
+      });
+
+      $('warehouseDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      document.addEventListener('click', () => {
+        root.classList.remove('open');
+      });
+    }
+
     $('sheetTrigger').addEventListener('click', loadSheet);
+
+    initGradeMultiSelect();
+    initAlertMultiSelect();
+    initCountryMultiSelect();
+    initWarehouseMultiSelect();
 
     // 预警卡片点击 → 筛选对应等级（再次点击取消）
     function bindStatCardClick(cardId, level) {
       $(cardId).addEventListener('click', () => {
-        const sel = $('filterAlert');
-        const current = sel.value;
-        sel.value = current === level ? '' : level;
-        // 高亮/取消高亮卡片
+        const checks = document.querySelectorAll('#alertDropdown input[type="checkbox"]');
+        const current = Array.from(checks).filter(cb => cb.value === level && cb.checked).length > 0;
+        checks.forEach(cb => cb.checked = cb.value === level ? !current : false);
+        syncAlertSelection();
         ['countR','countO','countY','countG'].forEach(id => $(id).parentElement.classList.remove('active'));
-        if (sel.value) $(cardId).parentElement.classList.add('active');
+        if (!current) $(cardId).parentElement.classList.add('active');
         render();
       });
     }
@@ -1768,19 +2124,15 @@
 
     // 同步卡片高亮
     function syncCardHighlight() {
-      const activeLevel = $('filterAlert').value;
+      const activeLevels = selectedAlerts.slice();
       [['countR','R'],['countO','O'],['countY','Y'],['countG','G']].forEach(([id, lvl]) => {
-        $(id).parentElement.classList.toggle('active', activeLevel === lvl);
+        $(id).parentElement.classList.toggle('active', activeLevels.includes(lvl));
       });
     }
 
-    $('filterGrade').addEventListener('change', () => { render(); syncCardHighlight(); });
-    $('filterAlert').addEventListener('change', () => {
-      try { localStorage.setItem('yellowbox_alert', $('filterAlert').value); } catch {}
-      render(); syncCardHighlight();
-    });
-    $('filterCountry').addEventListener('change', () => { render(); syncCardHighlight(); });
-    $('filterWarehouse').addEventListener('change', () => { render(); syncCardHighlight(); });
+    $('alertDropdown').addEventListener('change', () => { syncAlertSelection(); render(); syncCardHighlight(); });
+    $('countryDropdown').addEventListener('change', () => { syncCountrySelection(); render(); syncCardHighlight(); });
+    $('warehouseDropdown').addEventListener('change', () => { syncWarehouseSelection(); render(); syncCardHighlight(); });
     $('searchInput').addEventListener('input', () => { render(); syncCardHighlight(); });
 
     $('tableBody').addEventListener('focusout', (e) => {
@@ -1800,13 +2152,21 @@
 
     $('btnExport').addEventListener('click', () => {
       const processed = getProcessed();
-      const gradeFilter = $('filterGrade').value;
-      const alertFilter = $('filterAlert').value;
+      syncGradeSelection();
+      syncAlertSelection();
+      syncCountrySelection();
+      syncWarehouseSelection();
+      const gradeFilters = selectedGrades.slice();
+      const alertFilters = selectedAlerts.slice();
+      const countryFilters = selectedCountries.slice();
+      const warehouseFilters = selectedWarehouses.slice();
       const search = $('searchInput').value.trim().toLowerCase();
 
       const filtered = processed.filter(p => {
-        if (gradeFilter && p.grade !== gradeFilter) return false;
-        if (alertFilter && p.level !== alertFilter) return false;
+        if (gradeFilters.length && !gradeFilters.includes(p.grade)) return false;
+        if (alertFilters.length && !alertFilters.includes(p.level)) return false;
+        if (countryFilters.length && !countryFilters.includes(p.country)) return false;
+        if (warehouseFilters.length && !warehouseFilters.includes(p.warehouse)) return false;
         if (search) {
           const hay = (p.mainSku + ' ' + p.boxSku + ' ' + p.country + ' ' + p.warehouse).toLowerCase();
           if (!hay.includes(search)) return false;
@@ -1866,8 +2226,6 @@
       }
 
       // 恢复预警卡片高亮
-      const savedAlert = localStorage.getItem('yellowbox_alert');
-      if (savedAlert) $('filterAlert').value = savedAlert;
       syncCardHighlight();
 
       // 模式切换
