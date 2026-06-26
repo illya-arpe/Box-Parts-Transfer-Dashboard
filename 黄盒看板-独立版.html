@@ -877,6 +877,7 @@
       color: var(--text-secondary);
       flex-wrap: wrap;
       gap: 8px;
+      min-width: max-content;
     }
 
     .pagination-info {
@@ -1351,9 +1352,33 @@
             <th class="num">黄盒可售天数<span class="formula-wrapper"><span class="formula-hint">❓</span><div class="formula-popover"><div class="formula-title">黄盒可售天数</div><p>黄盒日消耗量 = 黄盒90天销量 ÷ 90</p><p>黄盒可售天数 = 海外仓黄盒可用 ÷ 黄盒日消耗量</p><p style="color:var(--text-muted);font-size:12px;">黄盒销量为0时显示"—"</p></div></span></th>
             <th class="num">计划在途</th>
             <th class="num">国内仓可用</th>
-            <th class="num">预估发货失败</th>
-            <th class="num">预估需求量</th>
-            <th class="num">计算调拨</th>
+            <th class="num">
+              <span class="formula-wrapper">
+                <span class="formula-hint">预估发货失败 ❓</span>
+                <div class="formula-popover">
+                  <div class="formula-title">预估发货失败</div>
+                  <p>预估发货失败 = 主品日均销 × 0.02 × 90</p>
+                </div>
+              </span>
+            </th>
+            <th class="num">
+              <span class="formula-wrapper">
+                <span class="formula-hint">预估需求量 ❓</span>
+                <div class="formula-popover">
+                  <div class="formula-title">预估需求量</div>
+                  <p>预估需求量 = 预估发货失败 × 0.20</p>
+                </div>
+              </span>
+            </th>
+            <th class="num">
+              <span class="formula-wrapper">
+                <span class="formula-hint">计算调拨 ❓</span>
+                <div class="formula-popover">
+                  <div class="formula-title">计算调拨</div>
+                  <p>计算调拨 = 预估需求量 - 海外仓可用 - 黄盒在途</p>
+                </div>
+              </span>
+            </th>
             <th class="num">
                   <span class="formula-wrapper">
                     <span class="formula-hint">优先级分 ❓</span>
@@ -2163,12 +2188,19 @@
     function bindStatCardClick(cardId, level) {
       $(cardId).addEventListener('click', () => {
         const checks = document.querySelectorAll('#alertDropdown input[type="checkbox"]');
-        const current = Array.from(checks).filter(cb => cb.value === level && cb.checked).length > 0;
-        checks.forEach(cb => cb.checked = cb.value === level ? !current : false);
+        const current = Array.from(checks).filter(cb => cb.checked).map(cb => cb.value);
+        const isActive = current.includes(level);
+
+        // 单选：取消所有，再勾选当前（若之前未选中）
+        checks.forEach(cb => cb.checked = false);
+        if (!isActive) {
+          const target = Array.from(checks).find(cb => cb.value === level);
+          if (target) target.checked = true;
+        }
+
         syncAlertSelection();
-        ['countR','countO','countY','countG'].forEach(id => $(id).parentElement.classList.remove('active'));
-        if (!current) $(cardId).parentElement.classList.add('active');
         render();
+        syncCardHighlight();
       });
     }
     bindStatCardClick('countR', 'R');
